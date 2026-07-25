@@ -24,7 +24,8 @@
     "test:slack": "node scripts/slack-delivery-test.mjs",
     "test:blockers": "node scripts/blocker-recurrence-test.mjs",
     "demo:prepare": "node scripts/prepare-demo.mjs",
-    "test:caveats": "node scripts/caveats-test.mjs"
+    "test:caveats": "node scripts/caveats-test.mjs",
+    "demo:run": "node scripts/demo-run.mjs"
   },
   "dependencies": {
     "dotenv": "^16.3.1",
