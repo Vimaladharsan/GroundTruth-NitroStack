@@ -40,6 +40,7 @@ build/Release
 
 # Dependencies
 node_modules/
+src/widgets/node_modules/
 jspm_packages/
 .pnp
 .pnp.js
@@ -89,6 +90,8 @@ dist/
 build/
 .next/
 out/
+src/widgets/.next/
+src/widgets/out/
 .output
 .nuxt
 .docusaurus
@@ -120,9 +123,20 @@ data/*.json
 .nitrostack/
 .nitrocloud/
 
+# Secrets — never commit these
+*.pem
+*.key
+tokens.json
+
+# Uploads
+uploads/
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
 .idea/
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
