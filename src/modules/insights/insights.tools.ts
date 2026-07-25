@@ -181,6 +181,313 @@ export class InsightsTools {
     };
   }
 
+
+  @Tool({
+    name: 'get_employee_detail',
+    description:
+      "Everything on file for one person: every report in the window, what GitHub showed " +
+      'against each, how long any blocker has run, their confidence and tone over time, and ' +
+      'any alerts raised. Use this when a digest row raises a question and you need the ' +
+      'history behind it — the digest answers who, this answers why.',
+    inputSchema: z.object({
+      employeeId: z
+        .string()
+        .describe('Employee id, full name, or GitHub username'),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(30)
+        .default(7)
+        .describe('How many days back to include, counting today'),
+    }),
+  })
+  @Widget('employee-detail')
+  async getEmployeeDetail(
+    input: { employeeId: string; days: number },
+    ctx: ExecutionContext,
+  ) {
+    const employee = store.resolveEmployee(input.employeeId);
+    if (!employee) {
+      throw new Error(
+        `No employee matches "${input.employeeId}". Read team://employees for valid ids.`,
+      );
+    }
+
+    const dates: string[] = [];
+    for (let i = input.days - 1; i >= 0; i--) dates.push(daysAgo(i));
+
+    ctx.logger.info('Reading employee detail', {
+      employee: employee.name,
+      days: input.days,
+    });
+
+    const timeline = dates.map((date) => {
+      const report = store.getReport(employee.id, date);
+      const check = report ? store.getActivityCheck(report.id) : undefined;
+
+      return {
+        date,
+        submitted: Boolean(report),
+        reportText: report?.rawText ?? null,
+        confidence: report?.confidence ?? null,
+        sentiment: report?.sentiment ?? null,
+        blockers: report?.blockers ?? [],
+        claims: report?.claims ?? [],
+        verified: Boolean(check),
+        verdict: check?.verdict ?? null,
+        matchScore: check?.matchScore ?? null,
+        commits: check?.commits.map((c) => ({ sha: c.sha, message: c.message })) ?? [],
+        pullRequests:
+          check?.pullRequests.map((pr) => ({ number: pr.number, title: pr.title })) ?? [],
+      };
+    });
+
+    // Newest first reads better in a detail view — you arrive asking about today.
+    timeline.reverse();
+
+    const blockerRuns = groupBlockerRuns(
+      dates.flatMap((date) =>
+        (store.getReport(employee.id, date)?.blockers ?? []).map((blocker) => ({
+          date,
+          blocker,
+        })),
+      ),
+    )
+      .map((r) => ({ blocker: r.blocker, days: r.dates.length, dates: r.dates }))
+      .sort((a, b) => b.days - a.days);
+
+    const submitted = timeline.filter((t) => t.submitted);
+    const scored = submitted.filter((t) => t.confidence !== null);
+    // Oldest-to-newest for the slope, since timeline is reversed for display.
+    const confidenceDelta =
+      scored.length >= 2
+        ? (scored[0].confidence as number) - (scored[scored.length - 1].confidence as number)
+        : 0;
+
+    const verifiedRuns = submitted.filter((t) => t.verified);
+    const unsupported = verifiedRuns.filter((t) => t.verdict === 'unsupported').length;
+
+    const alerts = store
+      .listAlerts(employee.teamId, true)
+      .filter((a) => a.employeeId === employee.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((a) => ({
+        id: a.id,
+        date: a.date,
+        severity: a.severity,
+        reason: a.reason,
+        resolved: a.resolved,
+      }));
+
+    return {
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        role: employee.role,
+        teamId: employee.teamId,
+        githubUsername: employee.githubUsername,
+      },
+      window: { days: input.days, from: dates[0], to: dates[dates.length - 1] },
+      summary: {
+        reported: submitted.length,
+        missed: input.days - submitted.length,
+        verified: verifiedRuns.length,
+        unsupportedDays: unsupported,
+        currentConfidence: scored[0]?.confidence ?? null,
+        confidenceDelta,
+        longestBlockerRun: blockerRuns[0]?.days ?? 0,
+        openAlerts: alerts.filter((a) => !a.resolved).length,
+      },
+      blockerRuns,
+      alerts,
+      timeline,
+      reminder:
+        'History, not a verdict. A quiet week and a struggling week look similar in ' +
+        'aggregate — read the reports before concluding anything.',
+    };
+  }
+
+
+  @Tool({
+    name: 'generate_weekly_summary',
+    description:
+      'A week of a team rather than a day: who was consistently reliable, whose claims kept ' +
+      'outrunning their activity, which blockers survived the week, and how reporting ' +
+      'discipline held up. Answers a different question from the daily digest — that one asks ' +
+      'who needs you today, this one asks what kind of week the team had. ' +
+      'Counts and streaks are facts; what they mean is yours to judge.',
+    inputSchema: z.object({
+      teamId: z.string().default('team-platform').describe('Team id, e.g. team-platform'),
+      days: z
+        .number()
+        .int()
+        .min(3)
+        .max(30)
+        .default(7)
+        .describe('Length of the window in days, counting today'),
+    }),
+  })
+  async generateWeeklySummary(
+    input: { teamId: string; days: number },
+    ctx: ExecutionContext,
+  ) {
+    const team = store.listEmployees(input.teamId);
+    if (team.length === 0) {
+      throw new Error(
+        `No employees on team "${input.teamId}". Read team://employees to see the roster.`,
+      );
+    }
+
+    const dates: string[] = [];
+    for (let i = input.days - 1; i >= 0; i--) dates.push(daysAgo(i));
+
+    ctx.logger.info('Generating weekly summary', {
+      teamId: input.teamId,
+      days: input.days,
+      headcount: team.length,
+    });
+
+    const people = team.map((employee) => {
+      const reports = dates
+        .map((date) => ({ date, report: store.getReport(employee.id, date) }))
+        .filter((r): r is { date: string; report: NonNullable<typeof r.report> } =>
+          Boolean(r.report),
+        );
+
+      const checks = reports
+        .map((r) => store.getActivityCheck(r.report.id))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+      const confidences = reports.map((r) => r.report.confidence);
+      const avgConfidence =
+        confidences.length > 0
+          ? Number(
+              (confidences.reduce((a, b) => a + b, 0) / confidences.length).toFixed(1),
+            )
+          : null;
+
+      const blockerRuns = groupBlockerRuns(
+        reports.flatMap((r) =>
+          (r.report.blockers ?? []).map((blocker) => ({ date: r.date, blocker })),
+        ),
+      ).sort((a, b) => b.dates.length - a.dates.length);
+
+      const unsupportedDays = checks.filter((c) => c.verdict === 'unsupported').length;
+      const consistentDays = checks.filter((c) => c.verdict === 'consistent').length;
+      const negativeDays = reports.filter((r) => r.report.sentiment === 'negative').length;
+
+      return {
+        employee: { id: employee.id, name: employee.name, role: employee.role },
+        reported: reports.length,
+        missed: input.days - reports.length,
+        verified: checks.length,
+        consistentDays,
+        unsupportedDays,
+        negativeDays,
+        avgConfidence,
+        confidenceDelta:
+          confidences.length >= 2 ? confidences[confidences.length - 1] - confidences[0] : 0,
+        longestBlockerRun: blockerRuns[0]?.dates.length ?? 0,
+        blockerRuns: blockerRuns
+          .filter((r) => r.dates.length >= 2)
+          .map((r) => ({ blocker: r.blocker, days: r.dates.length })),
+      };
+    });
+
+    /*
+     * Three lists rather than one ranking. A week is not a leaderboard: the
+     * person who reported every day and delivered, the person whose claims kept
+     * outrunning their commits, and the person who quietly stopped reporting are
+     * three different conversations, and collapsing them into one score would
+     * lose exactly the distinction a manager needs.
+     */
+    const claimsOutrunningWork = people
+      .filter((p) => p.unsupportedDays > 0)
+      .sort((a, b) => b.unsupportedDays - a.unsupportedDays);
+
+    const stuck = people
+      .filter((p) => p.longestBlockerRun >= 2)
+      .sort((a, b) => b.longestBlockerRun - a.longestBlockerRun);
+
+    const wearingDown = people
+      .filter((p) => p.confidenceDelta <= -1 || p.negativeDays >= 2)
+      .sort((a, b) => a.confidenceDelta - b.confidenceDelta);
+
+    /*
+     * Reliable means nothing is wrong, so it excludes anyone already named
+     * elsewhere. Someone can deliver every day and still be wearing down —
+     * that is a real and important combination — but listing them as reliable
+     * beside a note that they are struggling gives a manager two contradictory
+     * instructions and they will act on the reassuring one.
+     */
+    const concerning = new Set(
+      [...claimsOutrunningWork, ...stuck, ...wearingDown].map((p) => p.employee.id),
+    );
+    const reliable = people
+      .filter(
+        (p) =>
+          p.missed === 0 &&
+          p.reported > 0 &&
+          !concerning.has(p.employee.id),
+      )
+      .sort((a, b) => (b.avgConfidence ?? 0) - (a.avgConfidence ?? 0));
+
+    const quiet = people.filter((p) => p.missed >= Math.ceil(input.days / 2));
+
+    const totalPossible = team.length * input.days;
+    const totalReported = people.reduce((sum, p) => sum + p.reported, 0);
+
+    return {
+      teamId: input.teamId,
+      window: { days: input.days, from: dates[0], to: dates[dates.length - 1] },
+      summary: {
+        headcount: team.length,
+        reportingRate: Number(((totalReported / totalPossible) * 100).toFixed(0)),
+        reportsFiled: totalReported,
+        reportsPossible: totalPossible,
+        daysWithUnsupportedClaims: people.reduce((s, p) => s + p.unsupportedDays, 0),
+        blockersSurvivingTheWeek: people.filter((p) => p.longestBlockerRun >= 3).length,
+      },
+      reliable: reliable.map((p) => ({
+        name: p.employee.name,
+        role: p.employee.role,
+        reported: p.reported,
+        avgConfidence: p.avgConfidence,
+      })),
+      claimsOutrunningWork: claimsOutrunningWork.map((p) => ({
+        name: p.employee.name,
+        role: p.employee.role,
+        unsupportedDays: p.unsupportedDays,
+        verified: p.verified,
+      })),
+      stuck: stuck.map((p) => ({
+        name: p.employee.name,
+        role: p.employee.role,
+        longestBlockerRun: p.longestBlockerRun,
+        blockers: p.blockerRuns,
+      })),
+      wearingDown: wearingDown.map((p) => ({
+        name: p.employee.name,
+        role: p.employee.role,
+        confidenceDelta: p.confidenceDelta,
+        negativeDays: p.negativeDays,
+        avgConfidence: p.avgConfidence,
+      })),
+      quiet: quiet.map((p) => ({
+        name: p.employee.name,
+        role: p.employee.role,
+        missed: p.missed,
+      })),
+      people,
+      reminder:
+        'Counts and streaks, not conclusions. A week with no unsupported claims and no ' +
+        'lasting blockers is a good week and should be said plainly; do not manufacture a ' +
+        'concern to fill a section.',
+    };
+  }
+
+
   @Tool({
     name: 'search_reports',
     description:

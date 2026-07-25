@@ -140,6 +140,8 @@ breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 | `generate_daily_digest` | One team's dashboard, every row, ordered by attention needed |
 | `generate_org_digest` | Every team at once: per-team health plus the people needing attention org-wide |
 | `analyze_wellbeing_trend` | Confidence, tone, and recurring blockers across days |
+| `get_employee_detail` | One person's full history — the digest says who, this says why |
+| `generate_weekly_summary` | What kind of week a team had: reliable, stuck, wearing down, quiet |
 | `search_reports` | Keyword / person / date-range search over stored reports |
 | `seed_demo_data` | Seeds history. `realistic` (default): 12 people, two teams. `demo`: the original four, sized for a recording. |
 | `reset_demo_data` | Clears reports, cross-checks, and alerts |
@@ -171,6 +173,8 @@ breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 | `crosscheck-result` | `crosscheck_activity` — claimed vs. actual, side by side |
 | `team-digest` | `generate_daily_digest` — manager dashboard |
 | `wellbeing-trend` | `analyze_wellbeing_trend` — confidence sparklines per person |
+| `org-digest` | `generate_org_digest` — team cards plus the org-wide concerns |
+| `employee-detail` | `get_employee_detail` — one person's timeline, blockers, alerts |
 
 ## Environment setup
 
@@ -256,7 +260,7 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs seven suites — **117 assertions total**, exiting non-zero on any failure.
+Builds, then runs eight suites — **135 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
@@ -267,6 +271,7 @@ No credentials or network access required.
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 | Blockers | `npm run test:blockers` | 8 — a blocker reported across days is one blocker, however it is reworded |
+| Insights | `npm run test:insights` | 18 — the drill-down and weekly rollup, including that a quiet week reads as quiet |
 | Caveats | `npm run test:caveats` | 14 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data |
 
 Three properties worth calling out, because they are the ones that break quietly:

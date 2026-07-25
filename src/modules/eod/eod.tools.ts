@@ -236,6 +236,7 @@ export class EodTools {
         .describe('Restrict to these team ids. Omit for every team on the roster.'),
     }),
   })
+  @Widget('org-digest')
   async generateOrgDigest(
     input: { date?: string; teams?: string[] },
     ctx: ExecutionContext,

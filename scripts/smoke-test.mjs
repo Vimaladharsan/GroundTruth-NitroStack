@@ -92,7 +92,8 @@ try {
   const toolNames = (tools.result?.tools ?? []).map((t) => t.name).sort();
   const expectedTools = [
     'analyze_wellbeing_trend', 'crosscheck_activity', 'extract_eod_summary',
-    'generate_daily_digest', 'generate_org_digest', 'open_eod_form', 'reset_demo_data',
+    'generate_daily_digest', 'generate_org_digest', 'generate_weekly_summary',
+    'get_employee_detail', 'open_eod_form', 'reset_demo_data',
     'resolve_manager_alert', 'search_reports', 'seed_demo_data',
     'send_manager_alert', 'set_employee_github', 'submit_eod_report',
   ];

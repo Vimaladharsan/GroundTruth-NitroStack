@@ -704,6 +704,268 @@
         "wellbeing",
         "manager"
       ]
+    },
+    {
+      "uri": "/org-digest",
+      "name": "Organisation Digest",
+      "description": "Every team on one date: per-team health, plus the people needing attention org-wide",
+      "examples": [
+        {
+          "name": "Two teams, two concerns",
+          "description": "Team cards ordered by how many people need attention, then the individuals",
+          "data": {
+            "date": "2026-07-26",
+            "summary": {
+              "headcount": 12,
+              "submitted": 12,
+              "missing": 0,
+              "verified": 2,
+              "openAlerts": 1,
+              "needsAttention": 2
+            },
+            "teams": [
+              {
+                "teamId": "team-platform",
+                "summary": {
+                  "headcount": 6,
+                  "submitted": 6,
+                  "missing": 0,
+                  "verified": 1,
+                  "openAlerts": 1,
+                  "needsAttention": 1
+                },
+                "topConcern": {
+                  "name": "Aarav Menon",
+                  "role": "Backend Engineer",
+                  "attentionRank": 105,
+                  "reason": "Reported the login module as finished, but none of the nine commits today mention login, session, or auth, and no pull request was opened. The staging credentials blocker is now on its fourth day."
+                }
+              },
+              {
+                "teamId": "team-mobile",
+                "summary": {
+                  "headcount": 6,
+                  "submitted": 6,
+                  "missing": 0,
+                  "verified": 1,
+                  "openAlerts": 0,
+                  "needsAttention": 1
+                },
+                "topConcern": {
+                  "name": "Farhan Qureshi",
+                  "role": "Mobile QA",
+                  "attentionRank": 40,
+                  "reason": "Blocker on day 2: Device lab is still down so I cannot run the physical device suite"
+                }
+              }
+            ],
+            "needsAttention": [
+              {
+                "teamId": "team-platform",
+                "employee": {
+                  "id": "emp-1",
+                  "name": "Aarav Menon",
+                  "role": "Backend Engineer"
+                },
+                "submitted": true,
+                "reportText": "Finished the login module and wired up session handling. Still blocked on the staging database credentials, waiting on the infra team.",
+                "confidence": 2,
+                "recurringBlockers": [
+                  "Still blocked on the staging database credentials, waiting on the infra team"
+                ],
+                "longestBlockerRun": 4,
+                "verdict": "unsupported",
+                "matchScore": 0,
+                "commitCount": 9,
+                "prCount": 0,
+                "alerts": [
+                  {
+                    "id": "alert-1",
+                    "reason": "Reported the login module as finished, but none of the nine commits today mention login, session, or auth, and no pull request was opened. The staging credentials blocker is now on its fourth day.",
+                    "severity": "high"
+                  }
+                ],
+                "attentionRank": 105
+              },
+              {
+                "teamId": "team-mobile",
+                "employee": {
+                  "id": "emp-9",
+                  "name": "Farhan Qureshi",
+                  "role": "Mobile QA"
+                },
+                "submitted": true,
+                "reportText": "Device lab is still down so I cannot run the physical device suite. Blocked on IT for the replacement hub.",
+                "confidence": 3,
+                "recurringBlockers": [
+                  "Device lab is still down so I cannot run the physical device suite"
+                ],
+                "longestBlockerRun": 2,
+                "verdict": null,
+                "matchScore": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 40
+              }
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "organisation",
+        "manager",
+        "digest"
+      ]
+    },
+    {
+      "uri": "/employee-detail",
+      "name": "Employee Detail",
+      "description": "One person's full history: reports, what GitHub showed, blockers that lasted, and alerts raised",
+      "examples": [
+        {
+          "name": "A week that went wrong",
+          "description": "Confidence sliding, one blocker across four days, and a claim GitHub does not support",
+          "data": {
+            "employee": {
+              "id": "emp-1",
+              "name": "Aarav Menon",
+              "role": "Backend Engineer",
+              "teamId": "team-platform",
+              "githubUsername": "Vimaladharsan"
+            },
+            "window": {
+              "days": 5,
+              "from": "2026-07-22",
+              "to": "2026-07-26"
+            },
+            "summary": {
+              "reported": 5,
+              "missed": 0,
+              "verified": 1,
+              "unsupportedDays": 1,
+              "currentConfidence": 2,
+              "confidenceDelta": -2,
+              "longestBlockerRun": 4,
+              "openAlerts": 1
+            },
+            "blockerRuns": [
+              {
+                "blocker": "Still blocked on the staging database credentials, waiting on the infra team",
+                "days": 4,
+                "dates": [
+                  "2026-07-23",
+                  "2026-07-24",
+                  "2026-07-25",
+                  "2026-07-26"
+                ]
+              }
+            ],
+            "alerts": [
+              {
+                "id": "alert-1",
+                "date": "2026-07-26",
+                "severity": "high",
+                "reason": "Reported the login module as finished, but none of the nine commits today mention login, session, or auth, and no pull request was opened. The staging credentials blocker is now on its fourth day.",
+                "resolved": false
+              }
+            ],
+            "timeline": [
+              {
+                "date": "2026-07-26",
+                "submitted": true,
+                "reportText": "Finished the login module and wired up session handling. Still blocked on the staging database credentials, waiting on the infra team.",
+                "confidence": 2,
+                "sentiment": "neutral",
+                "blockers": [
+                  "Still blocked on the staging database credentials, waiting on the infra team"
+                ],
+                "verified": true,
+                "verdict": "unsupported",
+                "matchScore": 0,
+                "commits": [
+                  {
+                    "sha": "166c9e8",
+                    "message": "Give the widget's verify button the same rigour as the prompt"
+                  },
+                  {
+                    "sha": "d953467",
+                    "message": "Make the review cite GitHub's actual numbers"
+                  },
+                  {
+                    "sha": "96964f9",
+                    "message": "Normalise line endings across platforms"
+                  }
+                ],
+                "pullRequests": []
+              },
+              {
+                "date": "2026-07-25",
+                "submitted": true,
+                "reportText": "Completed the token refresh flow. Still blocked on the staging DB credentials, no word from infra.",
+                "confidence": 2,
+                "sentiment": "negative",
+                "blockers": [
+                  "Still blocked on the staging DB credentials, no word from infra"
+                ],
+                "verified": false,
+                "verdict": null,
+                "matchScore": null,
+                "commits": [],
+                "pullRequests": []
+              },
+              {
+                "date": "2026-07-24",
+                "submitted": true,
+                "reportText": "Wrapped up the auth middleware. Blocked on the staging database credentials again.",
+                "confidence": 3,
+                "sentiment": "neutral",
+                "blockers": [
+                  "Blocked on the staging database credentials again"
+                ],
+                "verified": false,
+                "verdict": null,
+                "matchScore": null,
+                "commits": [],
+                "pullRequests": []
+              },
+              {
+                "date": "2026-07-23",
+                "submitted": true,
+                "reportText": "Auth middleware mostly done. Waiting on staging credentials from infra to test it properly.",
+                "confidence": 3,
+                "sentiment": "neutral",
+                "blockers": [
+                  "Waiting on staging credentials from infra to test it properly"
+                ],
+                "verified": false,
+                "verdict": null,
+                "matchScore": null,
+                "commits": [],
+                "pullRequests": []
+              },
+              {
+                "date": "2026-07-22",
+                "submitted": true,
+                "reportText": "Started on the auth middleware, reading through the existing session code.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "verified": false,
+                "verdict": null,
+                "matchScore": null,
+                "commits": [],
+                "pullRequests": []
+              }
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "employee",
+        "history",
+        "drilldown"
+      ]
     }
   ],
   "generatedAt": "2026-07-25T00:00:00.000Z"
