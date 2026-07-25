@@ -20,8 +20,17 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'groundtruth.json');
 
 /**
- * Seed team. Replace githubUsername values with your own team's real GitHub
- * logins before the demo — crosscheck_activity attributes commits by these.
+ * Seed team.
+ *
+ * Only emp-1 is wired to a real GitHub account — point it at yours with
+ * `set_employee_github`, and commit as that account during the demo so
+ * crosscheck_activity has genuine activity to compare against.
+ *
+ * The other three keep deliberately fictional logins so they return no commits.
+ * That is the point: giving everyone the same real username would attribute the
+ * same commits to all four, and Karthik — whose whole role in the demo is to be
+ * the person who legitimately has no commits — would suddenly appear to have
+ * them, collapsing the false-positive case the agent is supposed to recognise.
  */
 const SEED: GroundTruthData = {
   employees: [
@@ -30,6 +39,7 @@ const SEED: GroundTruthData = {
       name: 'Aarav Menon',
       role: 'Backend Engineer',
       teamId: 'team-platform',
+      // Replace with a real login via set_employee_github before demoing.
       githubUsername: 'Vimaladharsan',
     },
     {
@@ -37,21 +47,21 @@ const SEED: GroundTruthData = {
       name: 'Divya Raghavan',
       role: 'Frontend Engineer',
       teamId: 'team-platform',
-      githubUsername: 'Vimaladharsan',
+      githubUsername: 'divya-raghavan-demo',
     },
     {
       id: 'emp-3',
       name: 'Karthik Iyer',
       role: 'Full-stack Engineer',
       teamId: 'team-platform',
-      githubUsername: 'Vimaladharsan',
+      githubUsername: 'karthik-iyer-demo',
     },
     {
       id: 'emp-4',
       name: 'Meera Nair',
       role: 'QA Engineer',
       teamId: 'team-platform',
-      githubUsername: 'Vimaladharsan',
+      githubUsername: 'meera-nair-demo',
     },
   ],
   reports: [],
@@ -215,6 +225,19 @@ class Store {
     this.data.activityChecks = [];
     this.data.alerts = [];
     this.persist();
+  }
+
+  /**
+   * Restore the roster to the seed definition.
+   *
+   * An existing data file keeps whatever employees it already had, so a change
+   * to SEED has no effect on a machine that has run before. This is the escape
+   * hatch for that.
+   */
+  resetRoster(): Employee[] {
+    this.data.employees = structuredClone(SEED.employees);
+    this.persist();
+    return this.listEmployees();
   }
 
   /** Overwrite an employee's GitHub login, so a demo can attribute commits to a real account. */

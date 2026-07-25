@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useWidgetSDK } from '@nitrostack/widgets';
 import { Chip, GroundTruthFrame } from '../_shared/tokens';
+import { unwrapToolResult } from '../_shared/tool-result';
 
 interface FormData {
   date: string;
@@ -11,6 +12,7 @@ interface FormData {
 }
 
 interface SubmitResult {
+  stored: boolean;
   reportId: string;
   employee: { name: string };
   claims: Array<{ text: string; assertsCompletion: boolean }>;
@@ -69,7 +71,12 @@ export default function EodForm() {
         confidence,
         date: data.date,
       });
-      setResult(response as unknown as SubmitResult);
+      const parsed = unwrapToolResult<SubmitResult>(response);
+      if (!parsed?.stored) {
+        setError('The report did not save. Check the server logs and try again.');
+        return;
+      }
+      setResult(parsed);
     } catch {
       setError('Could not save the report. Check the server logs and try again.');
     } finally {

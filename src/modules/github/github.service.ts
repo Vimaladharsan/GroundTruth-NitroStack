@@ -10,7 +10,16 @@
 
 import type { CommitRecord, PullRequestRecord } from '../../store/types.js';
 
-const API = 'https://api.github.com';
+const DEFAULT_API = 'https://api.github.com';
+
+/**
+ * API base, overridable via GITHUB_API_URL. Two reasons it is not a constant:
+ * GitHub Enterprise lives on a different host, and the integration test points
+ * it at a local mock so the whole fetch path can be exercised without a token.
+ */
+export function apiBase(): string {
+  return (process.env.GITHUB_API_URL?.trim() || DEFAULT_API).replace(/\/+$/, '');
+}
 
 export interface GitHubConfig {
   token: string;
@@ -94,6 +103,7 @@ export async function resolveRepos(cfg: GitHubConfig): Promise<string[]> {
   if (cfg.repos.length > 0) return cfg.repos;
 
   // Works for both orgs and personal accounts — try org first, fall back to user.
+  const API = apiBase();
   const paths = [
     `${API}/orgs/${cfg.org}/repos?sort=pushed&per_page=30`,
     `${API}/users/${cfg.org}/repos?sort=pushed&per_page=30`,
@@ -121,6 +131,7 @@ export async function fetchCommits(
 ): Promise<CommitRecord[]> {
   const { since, until } = dayBounds(date);
   const repos = await resolveRepos(cfg);
+  const API = apiBase();
   const out: CommitRecord[] = [];
 
   for (const repo of repos) {
@@ -162,7 +173,14 @@ export async function fetchPullRequests(
   date: string,
 ): Promise<PullRequestRecord[]> {
   const repos = await resolveRepos(cfg);
+  const API = apiBase();
   const needle = githubUsername.toLowerCase();
+  // Same local-day window the commit query uses. Comparing a UTC timestamp's
+  // date prefix against a local date would silently shift the boundary by the
+  // UTC offset — in IST that misfiles anything before 05:30 into the wrong day.
+  const { since, until } = dayBounds(date);
+  const withinDay = (iso: string | null | undefined) =>
+    typeof iso === 'string' && iso >= since && iso <= until;
   const out: PullRequestRecord[] = [];
 
   for (const repo of repos) {
@@ -184,11 +202,11 @@ export async function fetchPullRequests(
 
       for (const pr of prs) {
         if (pr.user?.login.toLowerCase() !== needle) continue;
-        // Count a PR toward the day if it was opened or touched that day.
+        // Count a PR toward the day if it was opened, updated, or merged in it.
         const touchedToday =
-          pr.created_at.startsWith(date) ||
-          pr.updated_at.startsWith(date) ||
-          (pr.merged_at?.startsWith(date) ?? false);
+          withinDay(pr.created_at) ||
+          withinDay(pr.updated_at) ||
+          withinDay(pr.merged_at);
         if (!touchedToday) continue;
 
         out.push({

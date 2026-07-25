@@ -222,17 +222,29 @@ export class DemoTools {
   @Tool({
     name: 'reset_demo_data',
     description:
-      'Delete all reports, cross-checks, and alerts, keeping the team roster. ' +
-      'Use to get back to a clean slate between demo runs.',
-    inputSchema: z.object({}),
+      'Delete all reports, cross-checks, and alerts. Use to get back to a clean slate ' +
+      'between demo runs. Pass resetRoster to also restore the team list to its defaults, ' +
+      'which is how you undo set_employee_github changes.',
+    inputSchema: z.object({
+      resetRoster: z
+        .boolean()
+        .default(false)
+        .describe('Also restore the employee roster, discarding GitHub username edits'),
+    }),
   })
-  async resetDemoData(_input: unknown, ctx: ExecutionContext) {
+  async resetDemoData(input: { resetRoster: boolean }, ctx: ExecutionContext) {
     store.clearOperationalData();
-    ctx.logger.info('Demo data reset');
+    if (input.resetRoster) store.resetRoster();
+
+    ctx.logger.info('Demo data reset', { resetRoster: input.resetRoster });
+
     return {
       reset: true,
+      rosterRestored: input.resetRoster,
       employeesKept: store.listEmployees().length,
-      message: 'All reports, cross-checks, and alerts cleared. Roster intact.',
+      message: input.resetRoster
+        ? 'Reports, cross-checks, and alerts cleared. Roster restored to defaults.'
+        : 'Reports, cross-checks, and alerts cleared. Roster left as-is.',
     };
   }
 

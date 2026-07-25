@@ -1,5 +1,5 @@
 import { HealthCheck, HealthCheckInterface, HealthCheckResult } from '@nitrostack/core';
-import { GitHubConfigError, readConfig } from '../modules/github/github.service.js';
+import { GitHubConfigError, apiBase, readConfig } from '../modules/github/github.service.js';
 
 /**
  * GitHub connectivity check.
@@ -34,7 +34,7 @@ export class GitHubHealthCheck implements HealthCheckInterface {
     }
 
     try {
-      const res = await fetch('https://api.github.com/rate_limit', {
+      const res = await fetch(`${apiBase()}/rate_limit`, {
         headers: {
           Authorization: `Bearer ${cfg.token}`,
           Accept: 'application/vnd.github+json',

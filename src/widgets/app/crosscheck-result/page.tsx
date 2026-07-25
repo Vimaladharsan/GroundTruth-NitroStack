@@ -209,7 +209,6 @@ export default function CrosscheckResult() {
                     style={{ flexDirection: 'column', gap: 3, fontSize: 13 }}
                   >
                     <button
-                      className="gt-btn--quiet"
                       onClick={() => openExternal(c.url)}
                       style={{
                         background: 'none',

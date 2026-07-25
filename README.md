@@ -118,9 +118,14 @@ cp .env.example .env
 | `GITHUB_TOKEN` | yes | GitHub Personal Access Token (classic), `repo` read scope. Used by `crosscheck_activity`. |
 | `GITHUB_ORG` | yes | GitHub org or username owning the repos to inspect |
 | `GITHUB_REPOS` | no | Comma-separated repos to restrict the check to. Blank scans the org's 30 most recently pushed repos. |
+| `GITHUB_API_URL` | no | API base override, for GitHub Enterprise or the integration test's mock |
 | `NITRO_LOG_LEVEL` | no | Defaults to `info` |
 
-Before demoing, set each employee's `githubUsername` in `src/store/store.ts` to a real GitHub login, so commits attribute to the right person.
+Only `emp-1` is wired to a real GitHub account — point it at yours with the
+`set_employee_github` tool. The other three keep fictional logins on purpose, so they
+return no commits. Giving everyone the same real username would attribute the same
+commits to all four, and the employee whose role in the demo is to legitimately *have*
+no commits would appear to have them.
 
 ## Installation
 
@@ -156,12 +161,28 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then drives the MCP server over stdio through the whole path — registration, submission, extraction, cross-check, alerting, digest ordering, trend signals, search, prompts, and health checks. **32 assertions**, exits non-zero on any failure.
+Builds, then runs three suites — **64 assertions total**, exiting non-zero on any failure.
+No credentials or network access required.
 
-Two properties worth calling out, because they are the ones that break quietly:
+| Suite | Command | Covers |
+|---|---|---|
+| Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
+| Smoke | `npm run smoke` | 32 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
+| GitHub | `npm run test:github` | 17 — the real fetch path against a local mock GitHub API |
 
-- `crosscheck_activity` passes with or without a token. With one it hits the real GitHub API; without one it must return a clear configuration error rather than crash.
-- The suite asserts the *absence* of false signals as well as the presence of real ones — the healthy employee and the non-code employee must both come back unflagged.
+Three properties worth calling out, because they are the ones that break quietly:
+
+- **The GitHub path is tested without a token.** `npm run test:github` stands up an HTTP
+  server speaking GitHub's REST shapes and points `GITHUB_API_URL` at it, so auth headers,
+  the date-window query, response parsing, claim matching, and verdicts are all exercised
+  for real. Three scenarios: claims supported by commits and a PR, a completion claim with
+  only an unrelated commit, and a genuine no-commit day.
+- **Absence of false signals is asserted, not just presence of real ones.** The healthy
+  employee and the non-code employee must both come back unflagged. A system that flags
+  the person doing code review and design is producing false positives, and that is the
+  failure mode most likely to make this useless in practice.
+- **`crosscheck_activity` passes with or without a token.** With one it hits the real API;
+  without one it must return a clear configuration error rather than crash.
 
 The sparkline palette in `src/widgets/app/_shared/tokens.tsx` was chosen by running a
 contrast/colour-blindness validator against each theme's surface rather than by eye, and
