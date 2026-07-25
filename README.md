@@ -169,6 +169,7 @@ No credentials or network access required.
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
 | Smoke | `npm run smoke` | 32 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 17 — the real fetch path against a local mock GitHub API |
+| Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 
 Three properties worth calling out, because they are the ones that break quietly:
 
@@ -190,7 +191,23 @@ carries a text trend label alongside the colour so the chart never encodes state
 
 ## Deployment
 
-Deployed to NitroCloud, with this repository's default branch connected for auto-deploy on push. See the NitroStack Studio Handbook for the Studio deploy flow and GitHub auto-deploy setup.
+Deployed to NitroCloud, with this repository's default branch connected for auto-deploy on
+push. See the NitroStack Studio Handbook for the Studio deploy flow and GitHub auto-deploy
+setup.
+
+Two things behave differently once deployed:
+
+**Environment variables do not travel with the code.** `.env` is gitignored — correctly, it
+holds a token — so the deployed instance has no GitHub credentials until `GITHUB_TOKEN`,
+`GITHUB_ORG`, and `GITHUB_REPOS` are set in the NitroCloud app's own environment settings.
+Until then every cross-check returns a configuration error. Read `health://checks` on the
+deployed instance to confirm: the `github` check reports `up` with a rate limit when the
+token is working, and `down` with the specific reason when it is not.
+
+**Storage is per-container and may be ephemeral.** Reports live in `data/groundtruth.json`
+relative to the working directory, so a redeploy can reset them — re-run `seed_demo_data`
+afterwards. If the directory is not writable at all the server does not crash; it keeps
+serving from memory and the `storage` health check reports `degraded`.
 
 ## License
 

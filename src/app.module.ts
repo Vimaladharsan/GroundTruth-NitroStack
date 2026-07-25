@@ -6,6 +6,7 @@ import { InsightsModule } from './modules/insights/insights.module.js';
 import { DemoModule } from './modules/demo/demo.module.js';
 import { SystemHealthCheck } from './health/system.health.js';
 import { GitHubHealthCheck } from './health/github.health.js';
+import { StorageHealthCheck } from './health/storage.health.js';
 
 /**
  * GroundTruth — AI agent for EOD-driven team intelligence.
@@ -42,6 +43,7 @@ import { GitHubHealthCheck } from './health/github.health.js';
     // Health Checks
     SystemHealthCheck,
     GitHubHealthCheck,
+    StorageHealthCheck,
   ]
 })
 export class AppModule {}

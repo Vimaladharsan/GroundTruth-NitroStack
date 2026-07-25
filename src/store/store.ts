@@ -72,6 +72,13 @@ const SEED: GroundTruthData = {
 class Store {
   private data: GroundTruthData;
 
+  /**
+   * False once a write has failed. Reads and writes still work in memory; only
+   * durability across a restart is lost.
+   */
+  private durable = true;
+  private lastPersistError: string | null = null;
+
   constructor() {
     this.data = this.load();
   }
@@ -96,11 +103,45 @@ class Store {
     return seeded;
   }
 
+  /**
+   * Write-through to disk, but never fatal.
+   *
+   * This class is a module-level singleton constructed at import time, so an
+   * exception here would take the whole server down before it could serve a
+   * single request. A deployed container may well have a read-only or
+   * non-writable working directory, and losing durability is a far better
+   * outcome than refusing to boot. Errors go to stderr — stdout is the MCP
+   * JSON-RPC channel and writing to it would corrupt the protocol stream.
+   */
   private persist(data: GroundTruthData = this.data): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+
+      if (!this.durable) {
+        this.durable = true;
+        this.lastPersistError = null;
+        console.error('[store] Persistence recovered; writes are durable again.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Warn once per failure mode rather than on every write.
+      if (this.durable || this.lastPersistError !== message) {
+        console.error(
+          `[store] Could not write ${DATA_FILE}: ${message}. ` +
+            'Continuing in memory — data will not survive a restart.',
+        );
+      }
+      this.durable = false;
+      this.lastPersistError = message;
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  /** Whether writes are reaching disk. Surfaced by the storage health check. */
+  persistenceStatus(): { durable: boolean; file: string; error: string | null } {
+    return { durable: this.durable, file: DATA_FILE, error: this.lastPersistError };
   }
 
   // ---- Employees ----
