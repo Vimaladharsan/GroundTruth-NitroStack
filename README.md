@@ -41,6 +41,64 @@ fallback; the model's reading is the authority.
 
 ## Architecture
 
+The split below is the whole design. Everything on the left is deterministic — it
+fetches, diffs, stores, and notifies, and decides nothing. Everything the agent does
+is judgement, and it happens in the model reading the prompt. Move the decision into
+a tool and this stops being an agent.
+
+```mermaid
+flowchart TB
+    subgraph evidence["Deterministic — gathers evidence, decides nothing"]
+        direction LR
+        submit["submit_eod_report<br/><i>stores the raw text</i>"]
+        extract["extract_eod_summary<br/><i>keyword parse, fallback only</i>"]
+        cross["crosscheck_activity<br/><i>live GitHub commits + PRs</i>"]
+        trend["analyze_wellbeing_trend<br/><i>slopes, streaks, blocker runs</i>"]
+    end
+
+    subgraph judgement["The agent — the only place anything is decided"]
+        direction TB
+        agentLoop["review_eod_submission<br/><b>perceive → verify → reason → decide → act</b>"]
+        decide{"Does this<br/>need a human?"}
+    end
+
+    subgraph act["Acting on the decision"]
+        direction LR
+        alert["send_manager_alert<br/><i>+ optional Slack</i>"]
+        digest["generate_daily_digest<br/><i>ranked by attention needed</i>"]
+        quiet["Stay quiet<br/><i>most days end here</i>"]
+    end
+
+    emp(["Employee<br/>one honest paragraph"]) --> submit
+    gh[("GitHub API<br/>what actually happened")] --> cross
+    submit --> extract --> agentLoop
+    cross --> agentLoop
+    trend --> agentLoop
+    agentLoop --> decide
+    decide -->|"gap is real, or<br/>blocker has persisted"| alert
+    decide -->|"innocent explanation:<br/>review, pairing, design"| quiet
+    alert --> digest
+    quiet --> digest
+    digest --> mgr(["Manager<br/>only what matters"])
+
+    classDef det fill:#e7eef7,stroke:#3d6ea8,color:#171b22
+    classDef agent fill:#faeed9,stroke:#9a6516,color:#171b22
+    classDef out fill:#e2f2ea,stroke:#1f7a52,color:#171b22
+    classDef ext fill:#eef0f4,stroke:#bcc3cf,color:#171b22
+    class submit,extract,cross,trend det
+    class agentLoop,decide agent
+    class alert,digest,quiet out
+    class emp,gh,mgr ext
+```
+
+Why it matters that the decision sits where it does: a scoring function with hardcoded
+thresholds would produce the same alerts on the same inputs, but it could never tell
+that a designer with no commits is fine while a backend engineer with no commits and a
+completion claim is not. The tools cannot make that distinction. The model can, and the
+prompt is what asks it to.
+
+### Project layout
+
 ```
 src/
 ├── app.module.ts            # registers the feature modules and health checks
