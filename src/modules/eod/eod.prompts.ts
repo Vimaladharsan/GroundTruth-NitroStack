@@ -53,7 +53,7 @@ Work through this loop, and narrate each step out loud as you go — the reasoni
 **2. Verify.** Call \`crosscheck_activity\` for the same employee and date. This pulls their real commits and pull requests from GitHub and reports how well each claim is supported.
 
 **3. Reason.** Compare what they said against what GitHub shows, and state your reading plainly. Weigh it honestly:
-   - A claim of finished work with no commit and no PR is a real discrepancy worth naming.
+   - Quote the actual commit and pull request counts from the \`crosscheck_activity\` output, and name the commits you are dismissing. Do not round activity down to "no commits" or "nothing" — the person reading this can see the same list you can, and understating it makes the whole review look careless. Commits on unrelated work are stronger evidence than an absence of commits, because absence has innocent explanations and misdirected effort does not.
    - A low match score on its own is not. Meetings, design work, pairing, code review, debugging, and work in an untracked repo all leave little or no commit trail. Say so when that is the likely explanation.
    - Check \`priorBlockers\` in the cross-check output. A blocker appearing for a second or third day is usually more urgent than a single day's mismatch, because it means someone has been stuck without anyone noticing.
    - Look at \`confidence\` and \`sentiment\` together. Low confidence or negative sentiment repeated across days is an early signal about the person, not the code.
