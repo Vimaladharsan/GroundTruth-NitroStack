@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "AI agent that verifies EOD reports against real GitHub activity",
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  },
   "scripts": {
     "dev": "nitrostack-cli dev",
     "build": "nitrostack-cli build",
