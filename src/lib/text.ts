@@ -112,20 +112,49 @@ export function sameBlocker(a: string, b: string): boolean {
 export function groupBlockerRuns(
   entries: Array<{ date: string; blocker: string }>,
 ): Array<{ blocker: string; dates: string[] }> {
-  const runs: Array<{ blocker: string; dates: string[] }> = [];
+  /*
+   * Each run remembers every wording it has seen, and a candidate joins if it
+   * matches ANY of them — not just the most recent.
+   *
+   * Matching only the latest label breaks the chain whenever someone rephrases
+   * twice. "Blocked on the staging credentials" → "waiting on infra for the
+   * staging credentials" → "still no credentials": each is close to its
+   * neighbour but the first and last are not, so one four-day blocker was
+   * splitting into two short ones and dropping below the threshold that decides
+   * whether a manager hears about it.
+   */
+  const runs: Array<{ texts: string[]; dates: string[] }> = [];
 
   // Oldest first, so the newest wording ends up as the label.
   for (const { date, blocker } of [...entries].sort((x, y) => x.date.localeCompare(y.date))) {
-    const existing = runs.find((r) => sameBlocker(r.blocker, blocker));
-    if (existing) {
-      existing.blocker = blocker;
-      if (!existing.dates.includes(date)) existing.dates.push(date);
-    } else {
-      runs.push({ blocker, dates: [date] });
+    /*
+     * An entry can bridge runs that did not previously look related, so collect
+     * every run it matches and merge them. Joining only the first match leaves
+     * the others orphaned: with wordings A, B, C where A~B and B~C but A≁C, B
+     * arriving second starts its own run, and C then joins A's — stranding B and
+     * turning one long blocker into two short ones.
+     */
+    const matched = runs.filter((r) => r.texts.some((t) => sameBlocker(t, blocker)));
+
+    if (matched.length === 0) {
+      runs.push({ texts: [blocker], dates: [date] });
+      continue;
     }
+
+    const [target, ...rest] = matched;
+    for (const other of rest) {
+      target.texts.push(...other.texts);
+      for (const d of other.dates) if (!target.dates.includes(d)) target.dates.push(d);
+      runs.splice(runs.indexOf(other), 1);
+    }
+
+    target.texts.push(blocker);
+    if (!target.dates.includes(date)) target.dates.push(date);
+    target.dates.sort();
   }
 
-  return runs;
+  // Label each run with its most recent wording — the version worth showing.
+  return runs.map((r) => ({ blocker: r.texts[r.texts.length - 1], dates: r.dates }));
 }
 
 /**

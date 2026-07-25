@@ -82,7 +82,7 @@ breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 | `generate_daily_digest` | Builds the manager's dashboard, ordered by attention needed |
 | `analyze_wellbeing_trend` | Confidence, tone, and recurring blockers across days |
 | `search_reports` | Keyword / person / date-range search over stored reports |
-| `seed_demo_data` | Creates several days of history for a demo |
+| `seed_demo_data` | Seeds history. `realistic` (default): 12 people, two teams. `demo`: the original four, sized for a recording. |
 | `reset_demo_data` | Clears reports, cross-checks, and alerts |
 | `set_employee_github` | Points an employee at a real GitHub login |
 
@@ -136,6 +136,11 @@ cp .env.example .env
 | `SLACK_WEBHOOK_URL` | no | Post alerts to a Slack channel as well as recording them. Blank means nothing is ever sent. |
 | `DEMO_AUTOSEED` | no | Re-seed demo history on boot when the store is empty. Useful on a deployed instance, where a redeploy starts with an empty data file. Never overwrites existing reports. |
 | `NITRO_LOG_LEVEL` | no | Defaults to `info` |
+
+The default roster is twelve people across `team-platform` and `team-mobile` — the size
+at which ranking, search, and team questions mean anything, since a four-row digest reads
+as a fixture. `seed_demo_data({ scale: 'demo' })` narrows it to the original four for a
+short screen recording, where twelve rows will not fit.
 
 Only `emp-1` is wired to a real GitHub account — point it at yours with the
 `set_employee_github` tool, and **pass `githubEmail` too**, set to the output of
@@ -192,18 +197,18 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs seven suites — **105 assertions total**, exiting non-zero on any failure.
+Builds, then runs seven suites — **110 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
 |---|---|---|
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
-| Smoke | `npm run smoke` | 32 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
+| Smoke | `npm run smoke` | 35 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 | Blockers | `npm run test:blockers` | 8 — a blocker reported across days is one blocker, however it is reworded |
-| Caveats | `npm run test:caveats` | 12 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data |
+| Caveats | `npm run test:caveats` | 14 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data |
 
 Three properties worth calling out, because they are the ones that break quietly:
 

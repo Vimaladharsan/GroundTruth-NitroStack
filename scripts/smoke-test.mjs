@@ -118,7 +118,11 @@ try {
   const roster = await send('resources/read', { uri: 'team://employees' });
   const rosterText = roster.result?.contents?.[0]?.text;
   const rosterData = rosterText ? JSON.parse(rosterText) : null;
-  check('team://employees returns roster', rosterData?.count === 4, `count=${rosterData?.count}`);
+  // The default roster is the realistic one: 12 people across two teams.
+  check('team://employees returns the full roster', rosterData?.count === 12,
+    `count=${rosterData?.count}`);
+  check('roster spans two teams',
+    new Set((rosterData?.employees ?? []).map((e) => e.teamId)).size === 2);
 
   const empId = rosterData?.employees?.[0]?.id;
 
@@ -180,7 +184,8 @@ try {
   // --- Digest ---
   const digest = await send('tools/call', { name: 'generate_daily_digest', arguments: { teamId: 'team-platform' } });
   const digestData = toolJson(digest);
-  check('generate_daily_digest builds rows', (digestData?.rows?.length ?? 0) === 4,
+  check('generate_daily_digest builds a row per team member',
+    (digestData?.rows?.length ?? 0) === 6,
     `submitted=${digestData?.summary?.submitted} alerts=${digestData?.summary?.openAlerts}`);
   check('digest ranks alerted person first',
     digestData?.rows?.[0]?.employee?.id === empId,
@@ -189,7 +194,7 @@ try {
   // --- Form widget tool ---
   const form = await send('tools/call', { name: 'open_eod_form', arguments: {} });
   const formData = toolJson(form);
-  check('open_eod_form returns roster', (formData?.employees?.length ?? 0) === 4);
+  check('open_eod_form returns roster', (formData?.employees?.length ?? 0) === 12);
 
   // --- The agent-loop prompt ---
   const prompt = await send('prompts/get', {
@@ -228,9 +233,11 @@ try {
   // --- Seeding history, which the trend signals depend on ---
   const seed = await send('tools/call', {
     name: 'seed_demo_data',
-    arguments: { days: 4, includeToday: false },
+    arguments: { days: 4, includeToday: false, scale: 'demo' },
   });
   const seedData = toolJson(seed);
+  check('demo scale narrows the roster to four', seedData?.headcount === 4,
+    `headcount=${seedData?.headcount}`);
   check('seed_demo_data creates history', seedData?.reportsCreated === 16,
     `${seedData?.reportsCreated} reports, ${seedData?.dateRange?.from}..${seedData?.dateRange?.to}`);
   check('seed leaves today empty for a live demo', seedData?.todayLeftEmpty === true);
@@ -241,7 +248,7 @@ try {
     arguments: { teamId: 'team-platform', days: 5 },
   });
   const trendData = toolJson(trend);
-  check('analyze_wellbeing_trend covers the team', trendData?.people?.length === 4);
+  check('analyze_wellbeing_trend covers the team', trendData?.people?.length === 4);  // demo scale
 
   const aarav = trendData?.people?.find((p) => p.employee.id === 'emp-1');
   check('detects the recurring blocker', (aarav?.recurringBlockers?.[0]?.days ?? 0) >= 3,
@@ -277,11 +284,19 @@ try {
   const healthText = health.result?.contents?.[0]?.text ?? '{}';
   check('health resource includes a github check', /github/i.test(healthText));
 
-  // --- Reset leaves the roster intact ---
+  // --- Reset clears reports but leaves whatever roster is loaded ---
+  // The demo-scale seed above narrowed it to four, and reset without resetRoster
+  // must not silently put the other eight back.
   const reset = await send('tools/call', { name: 'reset_demo_data', arguments: {} });
   const resetData = toolJson(reset);
-  check('reset_demo_data keeps the roster', resetData?.reset === true
-    && resetData?.employeesKept === 4);
+  check('reset_demo_data keeps the loaded roster', resetData?.reset === true
+    && resetData?.employeesKept === 4, `kept=${resetData?.employeesKept}`);
+
+  const restored = toolJson(await send('tools/call', {
+    name: 'reset_demo_data', arguments: { resetRoster: true },
+  }));
+  check('resetRoster restores the full default roster', restored?.employeesKept === 12,
+    `kept=${restored?.employeesKept}`);
 
   const afterReset = await send('tools/call', {
     name: 'search_reports', arguments: {},

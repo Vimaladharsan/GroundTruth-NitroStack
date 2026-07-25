@@ -2,8 +2,8 @@ import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/
 import { store, today } from '../../store/store.js';
 import {
   assertsCompletion,
+  groupBlockerRuns,
   looksLikeBlocker,
-  sameBlocker,
   scoreSentiment,
   splitClaims,
 } from '../../lib/text.js';
@@ -212,17 +212,19 @@ export class EodTools {
       const check = report ? store.getActivityCheck(report.id) : undefined;
       const alerts = openAlerts.filter((a) => a.employeeId === employee.id);
 
-      // Repeated blockers are the signal a manager most often misses. Matched
-      // by meaning rather than exact text — see sameBlocker.
-      const recurringBlockers = report?.blockers?.filter((blocker) =>
+      /*
+       * Repeated blockers are the signal a manager most often misses, matched by
+       * meaning rather than exact text. How long a blocker has run matters as
+       * much as whether it repeated: day two is a delay, day five is a stall.
+       */
+      const runs = groupBlockerRuns(
         store
-          .historyFor(employee.id, 5)
-          .some(
-            (prior) =>
-              prior.date !== date &&
-              (prior.blockers ?? []).some((b) => sameBlocker(b, blocker)),
-          ),
-      );
+          .historyFor(employee.id, 7)
+          .flatMap((r) => (r.blockers ?? []).map((blocker) => ({ date: r.date, blocker }))),
+      ).filter((r) => r.dates.length >= 2 && r.dates.includes(date));
+
+      const recurringBlockers = runs.map((r) => r.blocker);
+      const longestBlockerRun = runs.reduce((max, r) => Math.max(max, r.dates.length), 0);
 
       return {
         employee: {
@@ -235,7 +237,8 @@ export class EodTools {
         confidence: report?.confidence ?? null,
         sentiment: report?.sentiment ?? null,
         blockers: report?.blockers ?? [],
-        recurringBlockers: recurringBlockers ?? [],
+        recurringBlockers,
+        longestBlockerRun,
         verified: Boolean(check),
         matchScore: check?.matchScore ?? null,
         verdict: check?.verdict ?? null,
@@ -259,7 +262,7 @@ export class EodTools {
             null,
           ),
           verdict: check?.verdict ?? null,
-          recurringBlockers: recurringBlockers?.length ?? 0,
+          longestBlockerRun,
           sentiment: report?.sentiment ?? null,
         }),
       };
@@ -316,7 +319,7 @@ function rankAttention(input: {
   alerts: number;
   highestSeverity: 'low' | 'medium' | 'high' | null;
   verdict: string | null;
-  recurringBlockers: number;
+  longestBlockerRun: number;
   sentiment: string | null;
 }): number {
   let score = 0;
@@ -324,7 +327,16 @@ function rankAttention(input: {
   else if (input.highestSeverity === 'medium') score += 40;
   else if (input.highestSeverity === 'low') score += 20;
 
-  if (input.recurringBlockers > 0) score += 30;
+  /*
+   * A blocker's weight grows with how long it has run. Treating day two and day
+   * five the same is how someone stays stuck for a week inside a system built to
+   * notice exactly that — and it let a five-day blocker sit below the
+   * needs-attention threshold entirely.
+   */
+  if (input.longestBlockerRun >= 2) {
+    score += 15 + Math.min(input.longestBlockerRun - 1, 4) * 10;
+  }
+
   if (input.verdict === 'unsupported') score += 25;
   else if (input.verdict === 'partial') score += 15;
   if (input.sentiment === 'negative') score += 15;

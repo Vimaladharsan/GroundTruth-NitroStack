@@ -154,8 +154,15 @@ try {
     await s.ready();
     const digest = await s.tool('generate_daily_digest', { teamId: 'team-platform' });
     const search = await s.tool('search_reports', {});
-    check('empty store is seeded on boot', search.resultCount === 12,
+    // Realistic scale: twelve people over three days, minus the deliberate gaps
+    // where someone did not report.
+    check('empty store is seeded on boot', search.resultCount === 34,
       `${search.resultCount} report(s)`);
+    const people = new Set(search.results.map((r) => r.employee.id));
+    const teams = await s.tool('generate_daily_digest', { teamId: 'team-mobile' });
+    check('seeded the whole roster', people.size === 12, `${people.size} distinct people`);
+    check('seeded the second team too', (teams.rows?.length ?? 0) === 6,
+      `team-mobile has ${teams.rows?.length} rows`);
     check('today is still left empty for a live submission',
       digest.summary.submitted === 0, `submitted=${digest.summary.submitted}`);
     check('logged the reseed to stderr', s.st.stderr.join('').includes('[demo] Store was empty'));

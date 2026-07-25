@@ -7,6 +7,13 @@ import {
   splitClaims,
 } from '../../lib/text.js';
 import type { EODReport } from '../../store/types.js';
+import {
+  DEMO_TEAM,
+  REALISTIC_SCRIPTS,
+  REALISTIC_TEAM,
+} from './realistic-seed.js';
+
+export type SeedScale = 'realistic' | 'demo';
 
 /**
  * Demo scaffolding.
@@ -132,17 +139,36 @@ function seedScript(dayOffset: number): SeedDay[] {
  * Creates `days` of prior history for the whole team.
  * Shared by the seed tool and the boot-time auto-seed.
  */
-export function seedHistory(days: number, includeToday: boolean): string[] {
+export function seedHistory(
+  days: number,
+  includeToday: boolean,
+  scale: SeedScale = 'realistic',
+): string[] {
   store.clearOperationalData();
+  store.setRoster(scale === 'demo' ? DEMO_TEAM : REALISTIC_TEAM);
 
   const created: string[] = [];
   const startOffset = includeToday ? 0 : 1;
 
-  // Walk backwards from the most recent day so dayOffset 0 is the freshest.
   for (let i = 0; i < days; i++) {
     const date = daysAgo(startOffset + i);
 
-    for (const entry of seedScript(i)) {
+    // dayOffset 0 is the most recent seeded day.
+    const entries =
+      scale === 'demo'
+        ? seedScript(i).map((e) => ({
+            employeeId: e.employeeId,
+            text: e.text,
+            confidence: e.confidence,
+          }))
+        : Object.entries(REALISTIC_SCRIPTS).flatMap(([employeeId, script]) => {
+            // A shorter script repeats its last entry, so a long window still reads
+            // sensibly. null means no report that day — itself a signal.
+            const entry = script[Math.min(i, script.length - 1)];
+            return entry ? [{ employeeId, ...entry }] : [];
+          });
+
+    for (const entry of entries) {
       const employee = store.getEmployee(entry.employeeId);
       if (!employee) continue;
 
@@ -183,8 +209,16 @@ export class DemoTools {
         .int()
         .min(1)
         .max(7)
-        .default(3)
+        .default(5)
         .describe('How many prior days of history to create'),
+      scale: z
+        .enum(['realistic', 'demo'])
+        .default('realistic')
+        .describe(
+          'realistic: 12 people across two teams, the size at which ranking, search and ' +
+            'team questions mean anything. demo: the original four, each making one ' +
+            'distinct point, sized for a short screen recording.',
+        ),
       includeToday: z
         .boolean()
         .default(false)
@@ -194,13 +228,14 @@ export class DemoTools {
     }),
   })
   async seedDemoData(
-    input: { days: number; includeToday: boolean },
+    input: { days: number; includeToday: boolean; scale: SeedScale },
     ctx: ExecutionContext,
   ) {
-    const created = seedHistory(input.days, input.includeToday);
+    const created = seedHistory(input.days, input.includeToday, input.scale);
     const startOffset = input.includeToday ? 0 : 1;
 
     ctx.logger.info('Seeded demo history', {
+      scale: input.scale,
       days: input.days,
       reports: created.length,
       includeToday: input.includeToday,
@@ -208,6 +243,9 @@ export class DemoTools {
 
     return {
       seeded: true,
+      scale: input.scale,
+      headcount: store.listEmployees().length,
+      teams: [...new Set(store.listEmployees().map((e) => e.teamId))],
       days: input.days,
       reportsCreated: created.length,
       dateRange: {

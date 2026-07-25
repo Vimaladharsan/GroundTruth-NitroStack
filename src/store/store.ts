@@ -15,6 +15,7 @@ import type {
   EODReport,
   GroundTruthData,
 } from './types.js';
+import { REALISTIC_TEAM } from '../modules/demo/realistic-seed.js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'groundtruth.json');
@@ -33,37 +34,10 @@ const DATA_FILE = path.join(DATA_DIR, 'groundtruth.json');
  * them, collapsing the false-positive case the agent is supposed to recognise.
  */
 const SEED: GroundTruthData = {
-  employees: [
-    {
-      id: 'emp-1',
-      name: 'Aarav Menon',
-      role: 'Backend Engineer',
-      teamId: 'team-platform',
-      // Replace with a real login via set_employee_github before demoing.
-      githubUsername: 'Vimaladharsan',
-    },
-    {
-      id: 'emp-2',
-      name: 'Divya Raghavan',
-      role: 'Frontend Engineer',
-      teamId: 'team-platform',
-      githubUsername: 'divya-raghavan-demo',
-    },
-    {
-      id: 'emp-3',
-      name: 'Karthik Iyer',
-      role: 'Full-stack Engineer',
-      teamId: 'team-platform',
-      githubUsername: 'karthik-iyer-demo',
-    },
-    {
-      id: 'emp-4',
-      name: 'Meera Nair',
-      role: 'QA Engineer',
-      teamId: 'team-platform',
-      githubUsername: 'meera-nair-demo',
-    },
-  ],
+  // Twelve people across two teams. A four-row digest reads as a fixture; this
+  // is the size at which ranking, search, and team questions mean anything.
+  // emp-1 is the only one wired to a real GitHub account — see realistic-seed.ts.
+  employees: structuredClone(REALISTIC_TEAM),
   reports: [],
   activityChecks: [],
   alerts: [],
@@ -277,6 +251,13 @@ class Store {
    */
   resetRoster(): Employee[] {
     this.data.employees = structuredClone(SEED.employees);
+    this.persist();
+    return this.listEmployees();
+  }
+
+  /** Install a specific roster. Used when switching between seed scales. */
+  setRoster(employees: Employee[]): Employee[] {
+    this.data.employees = structuredClone(employees);
     this.persist();
     return this.listEmployees();
   }
