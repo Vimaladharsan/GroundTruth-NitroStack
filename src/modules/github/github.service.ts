@@ -88,6 +88,16 @@ async function ghFetch<T>(url: string, token: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** A UTC instant rendered in the server's local calendar day and wall clock. */
+function toLocal(iso: string): { localDate: string; localTime: string } {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return {
+    localDate: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+    localTime: `${p(d.getHours())}:${p(d.getMinutes())}`,
+  };
+}
+
 /** Start and end of a YYYY-MM-DD day as ISO timestamps. */
 function dayBounds(date: string): { since: string; until: string } {
   const start = new Date(`${date}T00:00:00`);
@@ -201,6 +211,7 @@ export async function fetchCommits(
           message: c.commit.message.split('\n')[0],
           repo,
           committedAt: c.commit.author.date,
+          ...toLocal(c.commit.author.date),
           url: c.html_url,
         });
       }

@@ -50,7 +50,18 @@ export interface CommitRecord {
   sha: string;
   message: string;
   repo: string;
+  /** UTC instant, as GitHub reports it. */
   committedAt: string;
+  /**
+   * The local calendar day this commit falls in, and the local wall-clock time.
+   *
+   * Both exist because `committedAt` alone misleads. A commit made at 00:29 in
+   * IST is stamped 18:59Z the *previous* day, so anything reading the UTC date
+   * prefix concludes it happened yesterday — which is how a review once reported
+   * "zero commits today" while listing six of them.
+   */
+  localDate: string;
+  localTime: string;
   url: string;
 }
 
