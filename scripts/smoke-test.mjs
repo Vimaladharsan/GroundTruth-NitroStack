@@ -92,7 +92,7 @@ try {
   const toolNames = (tools.result?.tools ?? []).map((t) => t.name).sort();
   const expectedTools = [
     'analyze_wellbeing_trend', 'crosscheck_activity', 'extract_eod_summary',
-    'generate_daily_digest', 'open_eod_form', 'reset_demo_data',
+    'generate_daily_digest', 'generate_org_digest', 'open_eod_form', 'reset_demo_data',
     'resolve_manager_alert', 'search_reports', 'seed_demo_data',
     'send_manager_alert', 'set_employee_github', 'submit_eod_report',
   ];
@@ -302,6 +302,40 @@ try {
     name: 'search_reports', arguments: {},
   });
   check('reset clears all reports', toolJson(afterReset)?.resultCount === 0);
+
+  // --- Org digest spans every team ---
+  const orgSeed = toolJson(await send('tools/call', {
+    name: 'seed_demo_data', arguments: { days: 3, includeToday: true },
+  }));
+  const org = toolJson(await send('tools/call', {
+    name: 'generate_org_digest', arguments: {},
+  }));
+  check('org digest covers every team', org?.teams?.length === 2,
+    `${org?.teams?.length} team(s), headcount ${org?.summary?.headcount}`);
+  check('org totals match the roster', org?.summary?.headcount === orgSeed?.headcount,
+    `${org?.summary?.headcount} vs ${orgSeed?.headcount}`);
+  check('org digest lists only the concerning people',
+    Array.isArray(org?.needsAttention)
+      && org.needsAttention.every((r) => r.attentionRank >= 40),
+    `${org?.needsAttention?.length} flagged of ${org?.summary?.headcount}`);
+  check('every flagged person carries their team', 
+    (org?.needsAttention ?? []).every((r) => typeof r.teamId === 'string'));
+  check('team cards name a top concern where one exists',
+    (org?.teams ?? []).every((t) => t.summary.needsAttention === 0 || t.topConcern));
+
+  const oneTeam = toolJson(await send('tools/call', {
+    name: 'generate_org_digest', arguments: { teams: ['team-mobile'] },
+  }));
+  check('org digest can be filtered to one team', oneTeam?.teams?.length === 1
+    && oneTeam?.teams?.[0]?.teamId === 'team-mobile');
+
+  // Team and org digests must never disagree about the same team.
+  const teamOnly = toolJson(await send('tools/call', {
+    name: 'generate_daily_digest', arguments: { teamId: 'team-mobile' },
+  }));
+  check('org and team digests agree',
+    oneTeam?.teams?.[0]?.summary?.needsAttention === teamOnly?.summary?.needsAttention
+      && oneTeam?.teams?.[0]?.summary?.headcount === teamOnly?.summary?.headcount);
 
 } catch (err) {
   check('harness completed', false, err.message);

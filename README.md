@@ -137,7 +137,8 @@ breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 | `crosscheck_activity` | Pulls live GitHub commits/PRs and scores claim support |
 | `send_manager_alert` | Raises an alert — called only when the agent decides to, and posts to Slack if configured |
 | `resolve_manager_alert` | Clears a handled alert |
-| `generate_daily_digest` | Builds the manager's dashboard, ordered by attention needed |
+| `generate_daily_digest` | One team's dashboard, every row, ordered by attention needed |
+| `generate_org_digest` | Every team at once: per-team health plus the people needing attention org-wide |
 | `analyze_wellbeing_trend` | Confidence, tone, and recurring blockers across days |
 | `search_reports` | Keyword / person / date-range search over stored reports |
 | `seed_demo_data` | Seeds history. `realistic` (default): 12 people, two teams. `demo`: the original four, sized for a recording. |
@@ -255,13 +256,13 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs seven suites — **110 assertions total**, exiting non-zero on any failure.
+Builds, then runs seven suites — **117 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
 |---|---|---|
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
-| Smoke | `npm run smoke` | 35 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
+| Smoke | `npm run smoke` | 42 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |

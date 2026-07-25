@@ -197,101 +197,212 @@ export class EodTools {
     ctx: ExecutionContext,
   ) {
     const date = input.date ?? today();
-    const team = store.listEmployees(input.teamId);
 
-    if (team.length === 0) {
+    if (store.listEmployees(input.teamId).length === 0) {
       throw new Error(
         `No employees on team "${input.teamId}". Read team://employees to see the roster.`,
       );
     }
 
-    const openAlerts = store.listAlerts(input.teamId);
-
-    const rows = team.map((employee) => {
-      const report = store.getReport(employee.id, date);
-      const check = report ? store.getActivityCheck(report.id) : undefined;
-      const alerts = openAlerts.filter((a) => a.employeeId === employee.id);
-
-      /*
-       * Repeated blockers are the signal a manager most often misses, matched by
-       * meaning rather than exact text. How long a blocker has run matters as
-       * much as whether it repeated: day two is a delay, day five is a stall.
-       */
-      const runs = groupBlockerRuns(
-        store
-          .historyFor(employee.id, 7)
-          .flatMap((r) => (r.blockers ?? []).map((blocker) => ({ date: r.date, blocker }))),
-      ).filter((r) => r.dates.length >= 2 && r.dates.includes(date));
-
-      const recurringBlockers = runs.map((r) => r.blocker);
-      const longestBlockerRun = runs.reduce((max, r) => Math.max(max, r.dates.length), 0);
-
-      return {
-        employee: {
-          id: employee.id,
-          name: employee.name,
-          role: employee.role,
-        },
-        submitted: Boolean(report),
-        reportText: report?.rawText ?? null,
-        confidence: report?.confidence ?? null,
-        sentiment: report?.sentiment ?? null,
-        blockers: report?.blockers ?? [],
-        recurringBlockers,
-        longestBlockerRun,
-        verified: Boolean(check),
-        matchScore: check?.matchScore ?? null,
-        verdict: check?.verdict ?? null,
-        commitCount: check?.commits.length ?? null,
-        prCount: check?.pullRequests.length ?? null,
-        alerts: alerts.map((a) => ({
-          id: a.id,
-          reason: a.reason,
-          severity: a.severity,
-        })),
-        attentionRank: rankAttention({
-          submitted: Boolean(report),
-          alerts: alerts.length,
-          highestSeverity: alerts.reduce<'low' | 'medium' | 'high' | null>(
-            (acc, a) =>
-              a.severity === 'high' || acc === 'high'
-                ? 'high'
-                : a.severity === 'medium' || acc === 'medium'
-                  ? 'medium'
-                  : 'low',
-            null,
-          ),
-          verdict: check?.verdict ?? null,
-          longestBlockerRun,
-          sentiment: report?.sentiment ?? null,
-        }),
-      };
-    });
-
-    rows.sort((a, b) => b.attentionRank - a.attentionRank);
+    const { rows, summary } = buildTeamDigest(input.teamId, date);
 
     ctx.logger.info('Generated daily digest', {
       teamId: input.teamId,
       date,
-      submitted: rows.filter((r) => r.submitted).length,
-      total: rows.length,
-      openAlerts: openAlerts.length,
+      submitted: summary.submitted,
+      total: summary.headcount,
+      openAlerts: summary.openAlerts,
+    });
+
+    return { teamId: input.teamId, date, summary, rows };
+  }
+
+  @Tool({
+    name: 'generate_org_digest',
+    description:
+      'The whole organisation on one date, across every team. Returns a per-team breakdown ' +
+      'plus the individuals who need attention org-wide, worst first. ' +
+      'Use this when you manage more than one team, or want to know which team is struggling ' +
+      'rather than which person. For one team use generate_daily_digest, which returns every ' +
+      'row rather than only the concerning ones.',
+    inputSchema: z.object({
+      date: z
+        .string()
+        .optional()
+        .describe('Date in YYYY-MM-DD format. Defaults to today.'),
+      teams: z
+        .array(z.string())
+        .optional()
+        .describe('Restrict to these team ids. Omit for every team on the roster.'),
+    }),
+  })
+  async generateOrgDigest(
+    input: { date?: string; teams?: string[] },
+    ctx: ExecutionContext,
+  ) {
+    const date = input.date ?? today();
+    const allTeams = [...new Set(store.listEmployees().map((e) => e.teamId))];
+    const teams = input.teams?.length
+      ? allTeams.filter((t) => input.teams!.includes(t))
+      : allTeams;
+
+    if (teams.length === 0) {
+      throw new Error(
+        input.teams?.length
+          ? `None of those teams exist. Known teams: ${allTeams.join(', ')}.`
+          : 'No teams on the roster. Read team://employees.',
+      );
+    }
+
+    const perTeam = teams.map((teamId) => ({
+      teamId,
+      ...buildTeamDigest(teamId, date),
+    }));
+
+    /*
+     * A director does not want every row; they want to know which teams are fine
+     * and which people are not. So this returns each team's shape but only the
+     * individuals who cleared the attention threshold — everyone else is noise at
+     * this altitude, and generate_daily_digest is there for the detail.
+     */
+    const needsAttention = perTeam
+      .flatMap((t) => t.rows.map((r) => ({ teamId: t.teamId, ...r })))
+      .filter((r) => r.attentionRank >= 40)
+      .sort((a, b) => b.attentionRank - a.attentionRank);
+
+    const totals = perTeam.reduce(
+      (acc, t) => ({
+        headcount: acc.headcount + t.summary.headcount,
+        submitted: acc.submitted + t.summary.submitted,
+        missing: acc.missing + t.summary.missing,
+        verified: acc.verified + t.summary.verified,
+        openAlerts: acc.openAlerts + t.summary.openAlerts,
+        needsAttention: acc.needsAttention + t.summary.needsAttention,
+      }),
+      { headcount: 0, submitted: 0, missing: 0, verified: 0, openAlerts: 0, needsAttention: 0 },
+    );
+
+    ctx.logger.info('Generated org digest', {
+      date,
+      teams: teams.length,
+      headcount: totals.headcount,
+      needsAttention: totals.needsAttention,
     });
 
     return {
-      teamId: input.teamId,
       date,
-      summary: {
-        headcount: rows.length,
-        submitted: rows.filter((r) => r.submitted).length,
-        missing: rows.filter((r) => !r.submitted).length,
-        verified: rows.filter((r) => r.verified).length,
-        openAlerts: openAlerts.length,
-        needsAttention: rows.filter((r) => r.attentionRank >= 40).length,
-      },
-      rows,
+      summary: totals,
+      teams: perTeam
+        .map((t) => {
+          const worst = t.rows[0];
+          return {
+            teamId: t.teamId,
+            summary: t.summary,
+            // One line per team card: who to look at, and why.
+            topConcern:
+              worst && worst.attentionRank > 0
+                ? {
+                    name: worst.employee.name,
+                    role: worst.employee.role,
+                    attentionRank: worst.attentionRank,
+                    reason:
+                      worst.alerts[0]?.reason ??
+                      (worst.recurringBlockers[0]
+                        ? `Blocker on day ${worst.longestBlockerRun}: ${worst.recurringBlockers[0]}`
+                        : worst.verdict === 'unsupported'
+                          ? 'Claimed work is not supported by their GitHub activity'
+                          : !worst.submitted
+                            ? 'No report submitted'
+                            : null),
+                  }
+                : null,
+          };
+        })
+        // Struggling teams first.
+        .sort((a, b) => b.summary.needsAttention - a.summary.needsAttention),
+      needsAttention,
+      reminder:
+        needsAttention.length === 0
+          ? 'Nobody crossed the attention threshold today. That is a real answer, not an empty result.'
+          : 'These are the people whose day did not look routine. Read the reason before acting.',
     };
   }
+}
+
+/**
+ * Builds one team's digest rows and summary.
+ * Shared by the team and org digests so the two can never disagree.
+ */
+function buildTeamDigest(teamId: string, date: string) {
+  const team = store.listEmployees(teamId);
+  const openAlerts = store.listAlerts(teamId);
+
+  const rows = team.map((employee) => {
+    const report = store.getReport(employee.id, date);
+    const check = report ? store.getActivityCheck(report.id) : undefined;
+    const alerts = openAlerts.filter((a) => a.employeeId === employee.id);
+
+    /*
+     * Repeated blockers are the signal a manager most often misses, matched by
+     * meaning rather than exact text. How long a blocker has run matters as much
+     * as whether it repeated: day two is a delay, day five is a stall.
+     */
+    const runs = groupBlockerRuns(
+      store
+        .historyFor(employee.id, 7)
+        .flatMap((r) => (r.blockers ?? []).map((blocker) => ({ date: r.date, blocker }))),
+    ).filter((r) => r.dates.length >= 2 && r.dates.includes(date));
+
+    const recurringBlockers = runs.map((r) => r.blocker);
+    const longestBlockerRun = runs.reduce((max, r) => Math.max(max, r.dates.length), 0);
+
+    return {
+      employee: { id: employee.id, name: employee.name, role: employee.role },
+      submitted: Boolean(report),
+      reportText: report?.rawText ?? null,
+      confidence: report?.confidence ?? null,
+      sentiment: report?.sentiment ?? null,
+      blockers: report?.blockers ?? [],
+      recurringBlockers,
+      longestBlockerRun,
+      verified: Boolean(check),
+      matchScore: check?.matchScore ?? null,
+      verdict: check?.verdict ?? null,
+      commitCount: check?.commits.length ?? null,
+      prCount: check?.pullRequests.length ?? null,
+      alerts: alerts.map((a) => ({ id: a.id, reason: a.reason, severity: a.severity })),
+      attentionRank: rankAttention({
+        submitted: Boolean(report),
+        alerts: alerts.length,
+        highestSeverity: alerts.reduce<'low' | 'medium' | 'high' | null>(
+          (acc, a) =>
+            a.severity === 'high' || acc === 'high'
+              ? 'high'
+              : a.severity === 'medium' || acc === 'medium'
+                ? 'medium'
+                : 'low',
+          null,
+        ),
+        verdict: check?.verdict ?? null,
+        longestBlockerRun,
+        sentiment: report?.sentiment ?? null,
+      }),
+    };
+  });
+
+  rows.sort((a, b) => b.attentionRank - a.attentionRank);
+
+  return {
+    rows,
+    summary: {
+      headcount: rows.length,
+      submitted: rows.filter((r) => r.submitted).length,
+      missing: rows.filter((r) => !r.submitted).length,
+      verified: rows.filter((r) => r.verified).length,
+      openAlerts: openAlerts.length,
+      needsAttention: rows.filter((r) => r.attentionRank >= 40).length,
+    },
+  };
 }
 
 /** Deterministic pre-parse of a report's free text. */
