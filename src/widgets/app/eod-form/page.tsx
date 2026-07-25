@@ -39,6 +39,23 @@ export default function EodForm() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [handoffFailed, setHandoffFailed] = useState(false);
+
+  /**
+   * Hands the review over to the chat agent.
+   *
+   * Only works where a conversation exists. Rendered in a preview pane — Studio's
+   * Tools page, for instance — there is nothing to send into, and the raw failure
+   * surfaces as an unexplained error toast. Catch it and say what to do instead.
+   */
+  const handoff = async (message: string) => {
+    try {
+      await sendFollowUpMessage(message);
+      setHandoffFailed(false);
+    } catch {
+      setHandoffFailed(true);
+    }
+  };
 
   if (!isReady) {
     return (
@@ -136,7 +153,7 @@ export default function EodForm() {
           <button
             className="gt-btn"
             onClick={() =>
-              sendFollowUpMessage(
+              handoff(
                 `Review ${name}'s end-of-day report for ${data.date}. ` +
                   'Call crosscheck_activity to compare the claims against their real GitHub ' +
                   'commits and pull requests, then reason out loud about whether any gap is ' +
@@ -150,6 +167,15 @@ export default function EodForm() {
           >
             Verify against GitHub
           </button>
+
+          {handoffFailed && (
+            <p className="gt-muted" style={{ margin: 0, fontSize: 12 }}>
+              This hands the review to the chat agent, so it needs a conversation to
+              send into. You are viewing this in a preview pane — open{' '}
+              <strong>AI Chat</strong> and ask it to review {name}&apos;s report for{' '}
+              {data.date}. The report is already saved.
+            </p>
+          )}
         </div>
       </GroundTruthFrame>
     );
