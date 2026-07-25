@@ -210,8 +210,8 @@ export async function fetchCommits(
           sha: c.sha.slice(0, 7),
           message: c.commit.message.split('\n')[0],
           repo,
-          committedAt: c.commit.author.date,
           ...toLocal(c.commit.author.date),
+          committedAtUtc: c.commit.author.date,
           url: c.html_url,
         });
       }
@@ -221,7 +221,7 @@ export async function fetchCommits(
     }
   }
 
-  return out.sort((a, b) => a.committedAt.localeCompare(b.committedAt));
+  return out.sort((a, b) => a.committedAtUtc.localeCompare(b.committedAtUtc));
 }
 
 export async function fetchPullRequests(

@@ -112,10 +112,11 @@ export class GitHubTools {
       // made just after local midnight carries the previous day's date prefix —
       // enough to make a reader conclude nothing happened today.
       observations.push(
-        `Found ${commits.length} commit(s) and ${pullRequests.length} pull request(s) ` +
-          `on ${date} in local time. Note that the raw committedAt timestamps are UTC ` +
-          `and may show a different calendar date; localDate on each commit is the ` +
-          `day it counts towards.`,
+        `${employee.name} made ${commits.length} commit(s) and touched ` +
+          `${pullRequests.length} pull request(s) on ${date}. Every commit listed ` +
+          `below happened on ${date} — use each commit's localDate, not ` +
+          `committedAtUtc, which is a UTC instant and may show the previous ` +
+          `calendar date. Do not describe this day as having no activity.`,
       );
     }
 
