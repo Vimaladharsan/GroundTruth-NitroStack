@@ -1,5 +1,6 @@
 import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
 import { store, today } from '../../store/store.js';
+import { deliverToSlack } from './slack.service.js';
 import type { Alert } from '../../store/types.js';
 
 export class AlertsTools {
@@ -70,6 +71,22 @@ export class AlertsTools {
       reason: input.reason,
     });
 
+    // Courtesy copy to Slack when a webhook is configured. The alert is already
+    // recorded, so a delivery failure is reported, not thrown — the escalation
+    // succeeded regardless of whether the notification did.
+    const slack = await deliverToSlack({
+      employeeName: employee.name,
+      employeeRole: employee.role,
+      teamId: employee.teamId,
+      date,
+      reason: input.reason,
+      severity: input.severity,
+    });
+
+    if (slack.attempted && !slack.delivered) {
+      ctx.logger.warn('Slack delivery failed', { reason: slack.reason });
+    }
+
     return {
       raised: true,
       alertId: alert.id,
@@ -78,6 +95,7 @@ export class AlertsTools {
       date,
       severity: input.severity,
       reason: input.reason,
+      slack,
       note: `This alert will appear at the top of the ${employee.teamId} digest until it is resolved.`,
     };
   }

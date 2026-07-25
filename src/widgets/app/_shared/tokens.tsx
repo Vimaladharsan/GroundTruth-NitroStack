@@ -10,7 +10,7 @@
  * slate-blue accent so a status never reads as branding, or the reverse.
  */
 
-export const GROUNDTRUTH_CSS = `
+const GROUNDTRUTH_CSS = `
 .gt {
   /* Neutrals carry a slight blue bias so they sit with the accent. */
   --gt-bg: #f6f7f9;

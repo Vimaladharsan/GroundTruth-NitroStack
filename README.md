@@ -36,24 +36,31 @@ The prompt explicitly instructs the model that a low match score is *not* on its
 
 ```
 src/
-├── app.module.ts            # registers the feature modules
+├── app.module.ts            # registers the feature modules and health checks
 ├── index.ts                 # bootstrap
 ├── health/
 │   ├── system.health.ts     # memory and uptime
-│   └── github.health.ts     # GitHub credentials and rate limit
+│   ├── github.health.ts     # GitHub credentials and rate limit
+│   └── storage.health.ts    # whether report data is reaching disk
 ├── lib/
 │   ├── text.ts              # claim / blocker / sentiment extraction (deterministic)
 │   └── uri.ts               # URI-template parameter matching for resources
 ├── store/
-│   ├── store.ts             # single-file JSON persistence
+│   ├── store.ts             # single-file JSON persistence, non-fatal on write failure
 │   └── types.ts             # domain types
-└── modules/
-    ├── eod/                 # what people say they did, + the agent loop prompts
-    ├── github/              # what actually happened, per the GitHub API
-    ├── alerts/              # how the agent escalates to a human
-    ├── insights/            # trends, search, and manager Q&A across days
-    └── demo/                # seeding helpers (the one module a real deploy drops)
+├── modules/
+│   ├── eod/                 # what people say they did, + the agent loop prompts
+│   ├── github/              # what actually happened, per the GitHub API
+│   ├── alerts/              # how the agent escalates (incl. optional Slack delivery)
+│   ├── insights/            # trends, search, and manager Q&A across days
+│   └── demo/                # seeding helpers (the one module a real deploy drops)
+└── widgets/                 # React widgets, one per surfaced tool
+scripts/                     # five offline test suites (see Testing)
+docs/DEMO_SCRIPT.md          # the 3-minute demo, beat by beat
 ```
+
+The demo walkthrough — pre-flight checklist, timings, and what to do when something
+breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ### Tools
 
@@ -63,7 +70,7 @@ src/
 | `submit_eod_report` | Stores a report and pre-parses claims, blockers, sentiment |
 | `extract_eod_summary` | Re-parses a stored report into structured claims |
 | `crosscheck_activity` | Pulls live GitHub commits/PRs and scores claim support |
-| `send_manager_alert` | Raises an alert — called only when the agent decides to |
+| `send_manager_alert` | Raises an alert — called only when the agent decides to, and posts to Slack if configured |
 | `resolve_manager_alert` | Clears a handled alert |
 | `generate_daily_digest` | Builds the manager's dashboard, ordered by attention needed |
 | `analyze_wellbeing_trend` | Confidence, tone, and recurring blockers across days |
@@ -119,6 +126,7 @@ cp .env.example .env
 | `GITHUB_ORG` | yes | GitHub org or username owning the repos to inspect |
 | `GITHUB_REPOS` | no | Comma-separated repos to restrict the check to. Blank scans the org's 30 most recently pushed repos. |
 | `GITHUB_API_URL` | no | API base override, for GitHub Enterprise or the integration test's mock |
+| `SLACK_WEBHOOK_URL` | no | Post alerts to a Slack channel as well as recording them. Blank means nothing is ever sent. |
 | `NITRO_LOG_LEVEL` | no | Defaults to `info` |
 
 Only `emp-1` is wired to a real GitHub account — point it at yours with the
@@ -161,7 +169,7 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs three suites — **64 assertions total**, exiting non-zero on any failure.
+Builds, then runs five suites — **82 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
@@ -170,6 +178,7 @@ No credentials or network access required.
 | Smoke | `npm run smoke` | 32 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 17 — the real fetch path against a local mock GitHub API |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
+| Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 
 Three properties worth calling out, because they are the ones that break quietly:
 
@@ -184,6 +193,10 @@ Three properties worth calling out, because they are the ones that break quietly
   failure mode most likely to make this useless in practice.
 - **`crosscheck_activity` passes with or without a token.** With one it hits the real API;
   without one it must return a clear configuration error rather than crash.
+- **A notification failure is never an escalation failure.** If Slack is down, rejects the
+  webhook, or hangs, the alert is still recorded and `send_manager_alert` still reports
+  success — because the escalation did happen. The tests cover all three cases, and no
+  message is ever sent anywhere real.
 
 The sparkline palette in `src/widgets/app/_shared/tokens.tsx` was chosen by running a
 contrast/colour-blindness validator against each theme's surface rather than by eye, and

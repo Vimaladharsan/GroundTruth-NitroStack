@@ -14,7 +14,7 @@
  *
  * Returns null when the URI doesn't fit the template.
  */
-export function matchUri(
+function matchUri(
   template: string,
   uri: string,
 ): Record<string, string> | null {
