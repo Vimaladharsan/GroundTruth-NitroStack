@@ -29,11 +29,31 @@ export class GitHubTools {
         .string()
         .optional()
         .describe('Date to check in YYYY-MM-DD format. Defaults to today.'),
+      claims: z
+        .array(
+          z.object({
+            text: z.string().describe('The claim, in the reporter’s own words'),
+            assertsCompletion: z
+              .boolean()
+              .describe('True if this asserts work is finished, rather than in progress'),
+          }),
+        )
+        .optional()
+        .describe(
+          'Claims you extracted yourself from the raw report text. Strongly preferred: ' +
+            'the stored extraction is keyword matching and splits on punctuation, so it ' +
+            'mangles anything conversational. Read the report and pass what it actually ' +
+            'claims. Omit to fall back to the stored extraction.',
+        ),
     }),
   })
   @Widget('crosscheck-result')
   async crosscheckActivity(
-    input: { employeeId: string; date?: string },
+    input: {
+      employeeId: string;
+      date?: string;
+      claims?: Array<{ text: string; assertsCompletion: boolean }>;
+    },
     ctx: ExecutionContext,
   ) {
     const date = input.date ?? today();
@@ -85,7 +105,16 @@ export class GitHubTools {
       ...pullRequests.map((p) => p.title),
     ].join(' \n');
 
-    const claims: ExtractedClaim[] = report.claims ?? [];
+    /*
+     * The caller's claims win when supplied. Keyword extraction cannot tell
+     * "finished the login module" from "still finishing the login module", and a
+     * model reading the raw text can — so the deterministic parse is the
+     * fallback, not the authority.
+     */
+    const agentSuppliedClaims = (input.claims?.length ?? 0) > 0;
+    const claims: ExtractedClaim[] = agentSuppliedClaims
+      ? input.claims!
+      : (report.claims ?? []);
     const claimSupport = claims.map((claim) => {
       const ratio = overlapRatio(claim.text, evidence);
       return {
@@ -101,6 +130,12 @@ export class GitHubTools {
     if (claims.length === 0) {
       observations.push(
         'No structured claims on file — run extract_eod_summary on this report first for a meaningful comparison.',
+      );
+    } else if (!agentSuppliedClaims) {
+      observations.push(
+        'Claims came from keyword extraction, which splits on punctuation and cannot ' +
+          'tell "finished X" from "still finishing X". Read reportText yourself; if the ' +
+          'parse misrepresents it, call this again passing your own claims.',
       );
     }
     if (commits.length === 0 && pullRequests.length === 0) {
@@ -226,6 +261,7 @@ export class GitHubTools {
       reportText: report.rawText,
       confidence: report.confidence,
       claimSupport,
+      claimsSuppliedByCaller: agentSuppliedClaims,
       blockers: report.blockers ?? [],
       priorBlockers,
       recurringBlockers,

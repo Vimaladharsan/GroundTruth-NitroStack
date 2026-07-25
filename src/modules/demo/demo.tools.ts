@@ -128,6 +128,47 @@ function seedScript(dayOffset: number): SeedDay[] {
   ];
 }
 
+/**
+ * Creates `days` of prior history for the whole team.
+ * Shared by the seed tool and the boot-time auto-seed.
+ */
+export function seedHistory(days: number, includeToday: boolean): string[] {
+  store.clearOperationalData();
+
+  const created: string[] = [];
+  const startOffset = includeToday ? 0 : 1;
+
+  // Walk backwards from the most recent day so dayOffset 0 is the freshest.
+  for (let i = 0; i < days; i++) {
+    const date = daysAgo(startOffset + i);
+
+    for (const entry of seedScript(i)) {
+      const employee = store.getEmployee(entry.employeeId);
+      if (!employee) continue;
+
+      const sentences = splitClaims(entry.text);
+      const blockers = sentences.filter(looksLikeBlocker);
+
+      store.addReport({
+        id: `rep-${employee.id}-${date}`,
+        employeeId: employee.id,
+        date,
+        rawText: entry.text,
+        confidence: entry.confidence,
+        submittedAt: new Date(`${date}T18:30:00`).toISOString(),
+        claims: sentences
+          .filter((s) => !blockers.includes(s))
+          .map((text) => ({ text, assertsCompletion: assertsCompletion(text) })),
+        blockers,
+        sentiment: scoreSentiment(entry.text),
+      });
+      created.push(`${date}:${employee.id}`);
+    }
+  }
+
+  return created;
+}
+
 export class DemoTools {
   @Tool({
     name: 'seed_demo_data',
@@ -156,41 +197,8 @@ export class DemoTools {
     input: { days: number; includeToday: boolean },
     ctx: ExecutionContext,
   ) {
-    store.clearOperationalData();
-
-    const created: Array<{ date: string; employee: string }> = [];
+    const created = seedHistory(input.days, input.includeToday);
     const startOffset = input.includeToday ? 0 : 1;
-
-    // Walk backwards from the most recent day so dayOffset 0 is the freshest.
-    for (let i = 0; i < input.days; i++) {
-      const offset = startOffset + i;
-      const date = daysAgo(offset);
-
-      for (const entry of seedScript(i)) {
-        const employee = store.getEmployee(entry.employeeId);
-        if (!employee) continue;
-
-        const sentences = splitClaims(entry.text);
-        const blockers = sentences.filter(looksLikeBlocker);
-
-        const report: EODReport = {
-          id: `rep-${employee.id}-${date}`,
-          employeeId: employee.id,
-          date,
-          rawText: entry.text,
-          confidence: entry.confidence,
-          submittedAt: new Date(`${date}T18:30:00`).toISOString(),
-          claims: sentences
-            .filter((s) => !blockers.includes(s))
-            .map((text) => ({ text, assertsCompletion: assertsCompletion(text) })),
-          blockers,
-          sentiment: scoreSentiment(entry.text),
-        };
-
-        store.addReport(report);
-        created.push({ date, employee: employee.name });
-      }
-    }
 
     ctx.logger.info('Seeded demo history', {
       days: input.days,

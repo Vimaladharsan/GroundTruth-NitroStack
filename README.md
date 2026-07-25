@@ -32,6 +32,13 @@ For each submitted report, the model works through:
 
 The prompt explicitly instructs the model that a low match score is *not* on its own a reason to alert: meetings, design work, pairing, and code review all legitimately leave no commit trail. An agent that stays quiet when nothing is wrong is more useful than one that cries wolf.
 
+Claim extraction follows the same principle. `submit_eod_report` parses the report with
+keyword matching so there is always *something* to compare, but that parse splits on
+punctuation and cannot tell "finished the login module" from "still finishing the login
+module". So `crosscheck_activity` accepts a `claims` array from the caller, and the prompt
+tells the model to read the raw text and supply its own. The deterministic parse is the
+fallback; the model's reading is the authority.
+
 ## Architecture
 
 ```
@@ -55,7 +62,7 @@ src/
 │   ├── insights/            # trends, search, and manager Q&A across days
 │   └── demo/                # seeding helpers (the one module a real deploy drops)
 └── widgets/                 # React widgets, one per surfaced tool
-scripts/                     # five offline test suites (see Testing)
+scripts/                     # seven offline test suites (see Testing)
 docs/DEMO_SCRIPT.md          # the 3-minute demo, beat by beat
 ```
 
@@ -127,6 +134,7 @@ cp .env.example .env
 | `GITHUB_REPOS` | no | Comma-separated repos to restrict the check to. Blank scans the org's 30 most recently pushed repos. |
 | `GITHUB_API_URL` | no | API base override, for GitHub Enterprise or the integration test's mock |
 | `SLACK_WEBHOOK_URL` | no | Post alerts to a Slack channel as well as recording them. Blank means nothing is ever sent. |
+| `DEMO_AUTOSEED` | no | Re-seed demo history on boot when the store is empty. Useful on a deployed instance, where a redeploy starts with an empty data file. Never overwrites existing reports. |
 | `NITRO_LOG_LEVEL` | no | Defaults to `info` |
 
 Only `emp-1` is wired to a real GitHub account — point it at yours with the
@@ -184,7 +192,7 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs six suites — **93 assertions total**, exiting non-zero on any failure.
+Builds, then runs seven suites — **105 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
@@ -195,6 +203,7 @@ No credentials or network access required.
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 | Blockers | `npm run test:blockers` | 8 — a blocker reported across days is one blocker, however it is reworded |
+| Caveats | `npm run test:caveats` | 12 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data |
 
 Three properties worth calling out, because they are the ones that break quietly:
 
