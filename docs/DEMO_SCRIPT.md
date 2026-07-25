@@ -16,12 +16,15 @@ Run through this list once. Every item has burned a hackathon demo before.
 - [ ] `seed_demo_data` with `days: 3` has been run. Today is intentionally left empty.
 - [ ] **Make one real commit** to the repo now, with a message unrelated to "login"
       — e.g. `Update README with setup notes`. This is the evidence the agent will
-      catch the claim against.
+      catch the claim against. Do not memorise the commit count; it changes on every
+      push, and the point is that none of them match the claim, not how many there are.
 - [ ] Confirm today's report is *not* yet submitted (`generate_daily_digest` shows
       `submitted: 0`). You are submitting it live.
 - [ ] Close Slack, email, and notifications. Full screen. Zoom the font so text is
       readable at 720p.
-- [ ] Do one silent dry run end to end. Do not record the first attempt.
+- [ ] Reset to a clean state: `npm run demo:prepare`
+- [ ] Do one silent dry run end to end, then `npm run demo:prepare` again to clear it.
+      Do not record the first attempt.
 
 ---
 
@@ -73,8 +76,10 @@ Set confidence to **2**. Submit.
 > "The agent is pulling Aarav's real GitHub activity for today. Not mocked — this
 > is the live API, and that commit was made two minutes ago.
 >
-> It has the claim: *finished the login module.* And it has the evidence: one
-> commit, a README edit, and no pull request opened.
+> It has the claim: *finished the login module.* And it has the evidence — and this
+> is the part that matters: there are commits today, plenty of them. This person
+> worked hard. But not one of them mentions login, or session, or auth. And no pull
+> request was opened.
 >
 > Watch what it does with that — it is reasoning about whether the gap is real,
 > and it also sees this staging-credentials blocker has now been there three days
@@ -132,7 +137,8 @@ demo and a product.
 | Symptom | What to do |
 |---|---|
 | `crosscheck_activity` errors | Env vars are missing on the deployed instance. Stop, fix, re-record. Do not improvise around it. |
-| No commits found | Your commit was authored under a different GitHub account than `emp-1`. Fix with `set_employee_github`. |
+| No commits found | The commit was authored under a different git email than `emp-1`'s `githubEmail`. Fix with `set_employee_github`, passing `githubEmail`. |
+| Commit count differs from what you rehearsed | Expected — it grows with every push. Never say a number out loud; say "commits today, none of them about login". |
 | The agent does not alert | Legitimate — it decided the gap was innocent. Do not fight it. Say "and here it decided the gap was explainable" and move to the digest. **An agent that occasionally declines to alert is the point**, not a bug. |
 | Digest looks empty | `seed_demo_data` was not run, or the container was redeployed and reset. Re-run it. |
 | Widget renders blank | Reconnect the MCP server in Studio to reload widgets. |
