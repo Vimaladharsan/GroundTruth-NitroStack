@@ -21,6 +21,7 @@ interface CrosscheckData {
   }>;
   blockers: string[];
   priorBlockers: Array<{ date: string; blockers: string[] }>;
+  recurringBlockers?: Array<{ blocker: string; days: number; dates: string[] }>;
   commits: Array<{ sha: string; message: string; repo: string; url: string }>;
   pullRequests: Array<{
     number: number;
@@ -263,20 +264,20 @@ export default function CrosscheckResult() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span className="gt-label">Blockers</span>
             {data.blockers.map((b, i) => {
-              const recurred = data.priorBlockers.filter((p) =>
-                p.blockers.some((pb) => pb.toLowerCase() === b.toLowerCase()),
-              );
+              // Recurrence is decided server-side, where the blocker-matching
+              // logic lives — the widget must not re-implement it and drift.
+              const run = (data.recurringBlockers ?? []).find((r) => r.blocker === b);
               return (
                 <div
                   key={i}
-                  className={`gt-row ${recurred.length > 0 ? 'gt-row--bad' : 'gt-row--warn'}`}
+                  className={`gt-row ${run ? 'gt-row--bad' : 'gt-row--warn'}`}
                   style={{ flexDirection: 'column', gap: 4, fontSize: 13 }}
                 >
                   <span>{b}</span>
-                  {recurred.length > 0 && (
+                  {run && (
                     <span style={{ color: 'var(--gt-bad)', fontSize: 11.5, fontWeight: 600 }}>
-                      Also reported on {recurred.map((r) => r.date).join(', ')} —{' '}
-                      {recurred.length + 1} days running
+                      {run.days} days running — also on{' '}
+                      {run.dates.filter((d) => d !== data.date).join(', ')}
                     </span>
                   )}
                 </div>

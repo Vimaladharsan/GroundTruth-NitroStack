@@ -1,6 +1,6 @@
 import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
 import { daysAgo, store, today } from '../../store/store.js';
-import { tokenize } from '../../lib/text.js';
+import { groupBlockerRuns, tokenize } from '../../lib/text.js';
 import type { EODReport } from '../../store/types.js';
 
 /**
@@ -114,24 +114,14 @@ export class InsightsTools {
         else break;
       }
 
-      // Blockers appearing on two or more days, with how long each has run.
-      const blockerRuns = new Map<string, string[]>();
-      for (const date of dates) {
-        for (const blocker of reports.get(date)?.blockers ?? []) {
-          const key = blocker.toLowerCase();
-          blockerRuns.set(key, [...(blockerRuns.get(key) ?? []), date]);
-        }
-      }
-      const recurringBlockers = [...blockerRuns.entries()]
-        .filter(([, ds]) => ds.length >= 2)
-        .map(([key, ds]) => ({
-          blocker:
-            reports.get(ds[ds.length - 1])?.blockers?.find(
-              (b) => b.toLowerCase() === key,
-            ) ?? key,
-          days: ds.length,
-          dates: ds,
-        }))
+      // Blockers appearing on two or more days, grouped by meaning rather than
+      // exact wording, so a reworded blocker still reads as the same problem.
+      const blockerEntries = dates.flatMap((date) =>
+        (reports.get(date)?.blockers ?? []).map((blocker) => ({ date, blocker })),
+      );
+      const recurringBlockers = groupBlockerRuns(blockerEntries)
+        .filter((r) => r.dates.length >= 2)
+        .map((r) => ({ blocker: r.blocker, days: r.dates.length, dates: r.dates }))
         .sort((a, b) => b.days - a.days);
 
       const signals: string[] = [];

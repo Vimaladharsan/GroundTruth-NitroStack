@@ -78,6 +78,57 @@ export function scoreSentiment(text: string): 'positive' | 'neutral' | 'negative
 }
 
 /**
+ * Whether two blocker descriptions are the same underlying problem.
+ *
+ * Exact string equality is useless here. Nobody retypes a blocker identically
+ * day after day — "blocked on staging credentials" one day becomes "still
+ * waiting on the staging DB credentials from infra" the next. Requiring an exact
+ * match meant a blocker stuck for a week read as four unrelated one-day
+ * blockers, which silently disables the single most valuable signal this product
+ * has: that someone has been stuck for days and nobody noticed.
+ *
+ * Compares content words and asks whether the shorter description is largely
+ * contained in the longer one, so an elaborated retelling still matches.
+ */
+export function sameBlocker(a: string, b: string): boolean {
+  const aTokens = new Set(tokenize(a));
+  const bTokens = new Set(tokenize(b));
+  if (aTokens.size === 0 || bTokens.size === 0) return false;
+
+  const [smaller, larger] =
+    aTokens.size <= bTokens.size ? [aTokens, bTokens] : [bTokens, aTokens];
+  let shared = 0;
+  for (const t of smaller) if (larger.has(t)) shared++;
+
+  // 0.6 tolerates rewording and added detail without merging distinct blockers.
+  return shared / smaller.size >= 0.6;
+}
+
+/**
+ * Groups blocker descriptions that describe the same problem.
+ * Returns one entry per distinct blocker, with the dates it appeared on and the
+ * most recent wording — which is the version worth showing a manager.
+ */
+export function groupBlockerRuns(
+  entries: Array<{ date: string; blocker: string }>,
+): Array<{ blocker: string; dates: string[] }> {
+  const runs: Array<{ blocker: string; dates: string[] }> = [];
+
+  // Oldest first, so the newest wording ends up as the label.
+  for (const { date, blocker } of [...entries].sort((x, y) => x.date.localeCompare(y.date))) {
+    const existing = runs.find((r) => sameBlocker(r.blocker, blocker));
+    if (existing) {
+      existing.blocker = blocker;
+      if (!existing.dates.includes(date)) existing.dates.push(date);
+    } else {
+      runs.push({ blocker, dates: [date] });
+    }
+  }
+
+  return runs;
+}
+
+/**
  * Fraction of the claim's content words that appear in the evidence text.
  * A blunt instrument by design — the agent interprets it, and a low score on
  * its own is not proof of anything.

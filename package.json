@@ -13,11 +13,12 @@
     "install:all": "nitrostack-cli install",
     "widget": "npm --prefix src/widgets",
     "smoke": "node scripts/smoke-test.mjs",
-    "verify": "npm run build && npm run test:unwrap && npm run smoke && npm run test:github && npm run test:readonly && npm run test:slack",
+    "verify": "npm run build && npm run test:unwrap && npm run smoke && npm run test:github && npm run test:readonly && npm run test:slack && npm run test:blockers",
     "test:github": "node scripts/github-integration-test.mjs",
     "test:unwrap": "node scripts/unwrap-test.mjs",
     "test:readonly": "node scripts/readonly-storage-test.mjs",
-    "test:slack": "node scripts/slack-delivery-test.mjs"
+    "test:slack": "node scripts/slack-delivery-test.mjs",
+    "test:blockers": "node scripts/blocker-recurrence-test.mjs"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

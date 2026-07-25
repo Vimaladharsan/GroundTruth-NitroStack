@@ -3,6 +3,7 @@ import { store, today } from '../../store/store.js';
 import {
   assertsCompletion,
   looksLikeBlocker,
+  sameBlocker,
   scoreSentiment,
   splitClaims,
 } from '../../lib/text.js';
@@ -211,16 +212,15 @@ export class EodTools {
       const check = report ? store.getActivityCheck(report.id) : undefined;
       const alerts = openAlerts.filter((a) => a.employeeId === employee.id);
 
-      // Repeated blockers are the signal a manager most often misses.
+      // Repeated blockers are the signal a manager most often misses. Matched
+      // by meaning rather than exact text — see sameBlocker.
       const recurringBlockers = report?.blockers?.filter((blocker) =>
         store
           .historyFor(employee.id, 5)
           .some(
             (prior) =>
               prior.date !== date &&
-              (prior.blockers ?? []).some(
-                (b) => b.toLowerCase() === blocker.toLowerCase(),
-              ),
+              (prior.blockers ?? []).some((b) => sameBlocker(b, blocker)),
           ),
       );
 

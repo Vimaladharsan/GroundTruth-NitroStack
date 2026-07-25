@@ -10,7 +10,9 @@ Run through this list once. Every item has burned a hackathon demo before.
 
 - [ ] `health://checks` on the deployed instance shows **`github: up`** with a rate limit.
       If it does not, stop — the core feature will fail on camera.
-- [ ] `set_employee_github` → `emp-1` points at the GitHub account you can commit as.
+- [ ] `set_employee_github` → `emp-1` points at the GitHub account you can commit as,
+      **and pass `githubEmail`** set to your `git config user.email`. Without it, commits
+      GitHub has not linked to your account are invisible and the cross-check finds nothing.
 - [ ] `seed_demo_data` with `days: 3` has been run. Today is intentionally left empty.
 - [ ] **Make one real commit** to the repo now, with a message unrelated to "login"
       — e.g. `Update README with setup notes`. This is the evidence the agent will
@@ -46,7 +48,12 @@ behind you rather than a title card.
 > "Finished the login module and wired up session handling. Still blocked on the
 > staging database credentials."
 
-Set confidence to 4. Submit.
+Set confidence to **2**. Submit.
+
+> Use 2, not 4. The seeded days run 3 → 3 → 2, so a 4 today reads as *improving* and
+> the trend chart contradicts the story you are telling. A 2 continues the slide. It is
+> also the more realistic report: someone claiming work is finished while feeling
+> under water is exactly the case a manager should see.
 
 **Say, while it saves:**
 
@@ -84,7 +91,10 @@ decides anything. The judgement lives in the prompt, in the model.
 
 ### 2:00–2:35 — What the manager sees
 
-**Do:** run `generate_daily_digest`. Then `analyze_wellbeing_trend`.
+**Do:** run `generate_daily_digest`. Then `analyze_wellbeing_trend` with **`days: 4`**.
+
+> Use 4, not the default 7. You seeded 3 prior days plus today, so a 7-day window
+> puts "3 of 7 days have no report" on every single person and buries the real signal.
 
 **Say:**
 

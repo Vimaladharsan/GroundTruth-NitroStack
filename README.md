@@ -173,7 +173,7 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs five suites — **85 assertions total**, exiting non-zero on any failure.
+Builds, then runs six suites — **93 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
@@ -183,6 +183,7 @@ No credentials or network access required.
 | GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
+| Blockers | `npm run test:blockers` | 8 — a blocker reported across days is one blocker, however it is reworded |
 
 Three properties worth calling out, because they are the ones that break quietly:
 

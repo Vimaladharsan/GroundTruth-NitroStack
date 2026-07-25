@@ -1,6 +1,6 @@
 import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
 import { store, today } from '../../store/store.js';
-import { overlapRatio } from '../../lib/text.js';
+import { groupBlockerRuns, overlapRatio } from '../../lib/text.js';
 import type { ActivityCheck, ExtractedClaim } from '../../store/types.js';
 import {
   GitHubConfigError,
@@ -134,6 +134,38 @@ export class GitHubTools {
       );
     }
 
+    // Prior days give the agent the context to spot a blocker that keeps recurring.
+    const history = store
+      .historyFor(employee.id, 5)
+      .filter((r) => (r.blockers?.length ?? 0) > 0);
+
+    const priorBlockers = history
+      .filter((r) => r.date !== date)
+      .map((r) => ({ date: r.date, blockers: r.blockers ?? [] }));
+
+    /*
+     * Recurrence is resolved here rather than in the widget. Matching blocker
+     * text is a judgement about meaning (see sameBlocker), and duplicating that
+     * logic in the frontend would let the two drift — the widget previously did
+     * its own exact-string comparison and so never showed a recurrence at all.
+     *
+     * This must run before the ActivityCheck is built: observations are stored
+     * with the check and read back by the digest, so anything pushed after
+     * addActivityCheck would appear in the response but not in the record.
+     */
+    const recurringBlockers = groupBlockerRuns(
+      history.flatMap((r) => (r.blockers ?? []).map((blocker) => ({ date: r.date, blocker }))),
+    )
+      .filter((r) => r.dates.length >= 2 && r.dates.includes(date))
+      .map((r) => ({ blocker: r.blocker, days: r.dates.length, dates: r.dates }))
+      .sort((a, b) => b.days - a.days);
+
+    for (const r of recurringBlockers) {
+      observations.push(
+        `This blocker has now been reported on ${r.days} separate days (${r.dates.join(', ')}): "${r.blocker}"`,
+      );
+    }
+
     // Overall score: how much of the claimed work has visible support.
     const scored = claimSupport.length > 0 ? claimSupport : [];
     const matchScore =
@@ -176,12 +208,6 @@ export class GitHubTools {
       pullRequests: pullRequests.length,
     });
 
-    // Prior days give the agent the context to spot a blocker that keeps recurring.
-    const priorBlockers = store
-      .historyFor(employee.id, 5)
-      .filter((r) => r.date !== date && (r.blockers?.length ?? 0) > 0)
-      .map((r) => ({ date: r.date, blockers: r.blockers ?? [] }));
-
     return {
       employee: {
         id: employee.id,
@@ -195,6 +221,7 @@ export class GitHubTools {
       claimSupport,
       blockers: report.blockers ?? [],
       priorBlockers,
+      recurringBlockers,
       commits,
       pullRequests,
       matchScore,
