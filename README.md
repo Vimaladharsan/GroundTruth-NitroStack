@@ -152,10 +152,21 @@ Then connect the project in **NitroStudio**: *Add Server → Nitro Project*, bro
 
 ## Usage
 
-**Demo setup (once):**
+**Demo setup:**
 
-1. Run `set_employee_github` to point `emp-1` at a GitHub login you can actually commit as.
-2. Run `seed_demo_data` with `days: 3`. This creates prior-day history — several signals only mean anything across days, and it deliberately leaves today empty so a report can be submitted live.
+```bash
+npm run demo:prepare                    # local
+npm run demo:prepare -- <service-url>   # a deployed instance
+```
+
+Checks health, wires `emp-1` to the GitHub identity from `DEMO_GITHUB_LOGIN` /
+`DEMO_GITHUB_EMAIL`, and seeds three prior days. Several signals only mean anything
+across days, so the history has to exist before any of it is worth showing. Today is
+deliberately left empty — submitting it live is the demo's second beat.
+
+Re-run it after every redeploy: a new container starts with an empty data file.
+
+To do it by hand instead: `set_employee_github`, then `seed_demo_data` with `days: 3`.
 
 **The flow:**
 
