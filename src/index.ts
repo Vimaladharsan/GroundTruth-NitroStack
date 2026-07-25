@@ -1,6 +1,6 @@
 /**
- * Calculator MCP Server
- * 
+ * GroundTruth MCP Server
+ *
  * Main entry point for the MCP server.
  * Uses the @McpApp decorator pattern for clean, NestJS-style architecture.
  * 

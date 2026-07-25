@@ -2,47 +2,223 @@
   "version": "1.0.0",
   "widgets": [
     {
-      "uri": "/calculator-result",
-      "name": "Calculator Result",
-      "description": "Displays the result of a calculation with operation details",
+      "uri": "/eod-form",
+      "name": "EOD Report Form",
+      "description": "Form an employee fills in to submit their end-of-day report",
       "examples": [
         {
-          "name": "Addition Example",
-          "description": "Shows the result of adding 5 + 3",
+          "name": "Empty form",
+          "description": "The form as an employee first sees it",
           "data": {
-            "operation": "add",
-            "a": 5,
-            "b": 3,
-            "result": 8,
-            "expression": "5 + 3 = 8"
-          }
-        },
-        {
-          "name": "Multiplication Example",
-          "description": "Shows the result of multiplying 6 × 7",
-          "data": {
-            "operation": "multiply",
-            "a": 6,
-            "b": 7,
-            "result": 42,
-            "expression": "6 × 7 = 42"
-          }
-        },
-        {
-          "name": "Division Example",
-          "description": "Shows the result of dividing 20 ÷ 4",
-          "data": {
-            "operation": "divide",
-            "a": 20,
-            "b": 4,
-            "result": 5,
-            "expression": "20 ÷ 4 = 5"
+            "date": "2026-07-25",
+            "employees": [
+              { "id": "emp-1", "name": "Aarav Menon", "role": "Backend Engineer" },
+              { "id": "emp-2", "name": "Divya Raghavan", "role": "Frontend Engineer" },
+              { "id": "emp-3", "name": "Karthik Iyer", "role": "Full-stack Engineer" },
+              { "id": "emp-4", "name": "Meera Nair", "role": "QA Engineer" }
+            ],
+            "selectedEmployeeId": "emp-1"
           }
         }
       ],
-      "tags": ["calculator", "math", "result"]
+      "tags": ["eod", "form", "employee"]
+    },
+    {
+      "uri": "/crosscheck-result",
+      "name": "Claim Cross-Check",
+      "description": "Side-by-side comparison of what an employee claimed against their real GitHub activity",
+      "examples": [
+        {
+          "name": "Mismatch detected",
+          "description": "Work reported as finished with no supporting PR",
+          "data": {
+            "employee": {
+              "id": "emp-1",
+              "name": "Aarav Menon",
+              "role": "Backend Engineer",
+              "githubUsername": "aaravmenon"
+            },
+            "date": "2026-07-25",
+            "reportText": "Finished the login module. Still blocked on the staging database credentials.",
+            "confidence": 4,
+            "claimSupport": [
+              {
+                "claim": "Finished the login module",
+                "assertsCompletion": true,
+                "overlap": 0,
+                "supported": false
+              }
+            ],
+            "blockers": ["Still blocked on the staging database credentials"],
+            "priorBlockers": [
+              {
+                "date": "2026-07-24",
+                "blockers": ["Still blocked on the staging database credentials"]
+              }
+            ],
+            "commits": [
+              {
+                "sha": "a91c3f2",
+                "message": "Update README with setup notes",
+                "repo": "Vimaladharsan/GroundTruth-NitroStack",
+                "url": "https://github.com"
+              }
+            ],
+            "pullRequests": [],
+            "matchScore": 0,
+            "verdict": "unsupported",
+            "observations": [
+              "Found 1 commit(s) and 0 pull request(s).",
+              "Claim asserts completed work but no matching commit or PR text was found: \"Finished the login module\"",
+              "Work was described as finished, but no pull request was opened or updated that day."
+            ]
+          }
+        },
+        {
+          "name": "Claims verified",
+          "description": "Report and activity line up",
+          "data": {
+            "employee": {
+              "id": "emp-2",
+              "name": "Divya Raghavan",
+              "role": "Frontend Engineer",
+              "githubUsername": "divyaraghavan"
+            },
+            "date": "2026-07-25",
+            "reportText": "Completed the digest dashboard widget and opened a PR for review.",
+            "confidence": 5,
+            "claimSupport": [
+              {
+                "claim": "Completed the digest dashboard widget and opened a PR for review",
+                "assertsCompletion": true,
+                "overlap": 0.6,
+                "supported": true
+              }
+            ],
+            "blockers": [],
+            "priorBlockers": [],
+            "commits": [
+              {
+                "sha": "7d2e884",
+                "message": "Add digest dashboard widget",
+                "repo": "Vimaladharsan/GroundTruth-NitroStack",
+                "url": "https://github.com"
+              }
+            ],
+            "pullRequests": [
+              {
+                "number": 12,
+                "title": "Digest dashboard widget",
+                "repo": "Vimaladharsan/GroundTruth-NitroStack",
+                "state": "open",
+                "merged": false,
+                "url": "https://github.com"
+              }
+            ],
+            "matchScore": 1,
+            "verdict": "consistent",
+            "observations": ["Found 1 commit(s) and 1 pull request(s)."]
+          }
+        }
+      ],
+      "tags": ["verification", "github", "eod"]
+    },
+    {
+      "uri": "/team-digest",
+      "name": "Manager Daily Digest",
+      "description": "The whole team's day, ordered by how much attention each person needs",
+      "examples": [
+        {
+          "name": "Day with one escalation",
+          "description": "One high-severity alert plus a missing report",
+          "data": {
+            "teamId": "team-platform",
+            "date": "2026-07-25",
+            "summary": {
+              "headcount": 4,
+              "submitted": 3,
+              "missing": 1,
+              "verified": 3,
+              "openAlerts": 1,
+              "needsAttention": 1
+            },
+            "rows": [
+              {
+                "employee": { "id": "emp-1", "name": "Aarav Menon", "role": "Backend Engineer" },
+                "submitted": true,
+                "reportText": "Finished the login module. Still blocked on the staging database credentials.",
+                "confidence": 4,
+                "sentiment": "negative",
+                "blockers": ["Still blocked on the staging database credentials"],
+                "recurringBlockers": ["Still blocked on the staging database credentials"],
+                "verified": true,
+                "matchScore": 0,
+                "verdict": "unsupported",
+                "commitCount": 1,
+                "prCount": 0,
+                "alerts": [
+                  {
+                    "id": "alert-1",
+                    "reason": "Reported the login module as finished, but the only commit that day was a README edit and no PR was opened. The staging credentials blocker is now on its second day.",
+                    "severity": "high"
+                  }
+                ],
+                "attentionRank": 100
+              },
+              {
+                "employee": { "id": "emp-4", "name": "Meera Nair", "role": "QA Engineer" },
+                "submitted": false,
+                "reportText": null,
+                "confidence": null,
+                "sentiment": null,
+                "blockers": [],
+                "recurringBlockers": [],
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 10
+              },
+              {
+                "employee": { "id": "emp-3", "name": "Karthik Iyer", "role": "Full-stack Engineer" },
+                "submitted": true,
+                "reportText": "Paired with Divya on the widget layout, mostly review and design today.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "verified": true,
+                "matchScore": 0.5,
+                "verdict": "partial",
+                "commitCount": 1,
+                "prCount": 0,
+                "alerts": [],
+                "attentionRank": 15
+              },
+              {
+                "employee": { "id": "emp-2", "name": "Divya Raghavan", "role": "Frontend Engineer" },
+                "submitted": true,
+                "reportText": "Completed the digest dashboard widget and opened a PR for review.",
+                "confidence": 5,
+                "sentiment": "positive",
+                "blockers": [],
+                "recurringBlockers": [],
+                "verified": true,
+                "matchScore": 1,
+                "verdict": "consistent",
+                "commitCount": 4,
+                "prCount": 1,
+                "alerts": [],
+                "attentionRank": 0
+              }
+            ]
+          }
+        }
+      ],
+      "tags": ["manager", "digest", "dashboard"]
     }
   ],
-  "generatedAt": "2025-01-01T00:00:00.000Z"
+  "generatedAt": "2026-07-25T00:00:00.000Z"
 }
-

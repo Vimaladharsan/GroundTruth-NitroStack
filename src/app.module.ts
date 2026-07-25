@@ -1,17 +1,21 @@
 import { McpApp, Module, ConfigModule } from '@nitrostack/core';
-import { CalculatorModule } from './modules/calculator/calculator.module.js';
+import { EodModule } from './modules/eod/eod.module.js';
+import { GitHubModule } from './modules/github/github.module.js';
+import { AlertsModule } from './modules/alerts/alerts.module.js';
 import { SystemHealthCheck } from './health/system.health.js';
 
 /**
- * Root Application Module
- * 
- * This is the main module that bootstraps the MCP server.
- * It registers all feature modules and health checks.
+ * GroundTruth — AI agent for EOD-driven team intelligence.
+ *
+ * Three modules, split by what each is responsible for:
+ *   eod     — what employees say they did, plus the agent's review loop
+ *   github  — what actually happened, per the GitHub API
+ *   alerts  — how the agent escalates to a human
  */
 @McpApp({
   module: AppModule,
   server: {
-    name: 'calculator-server',
+    name: 'groundtruth',
     version: '1.0.0'
   },
   logging: {
@@ -20,10 +24,12 @@ import { SystemHealthCheck } from './health/system.health.js';
 })
 @Module({
   name: 'app',
-  description: 'Root application module',
+  description: 'GroundTruth root application module',
   imports: [
     ConfigModule.forRoot(),
-    CalculatorModule
+    EodModule,
+    GitHubModule,
+    AlertsModule
   ],
   providers: [
     // Health Checks
@@ -31,4 +37,3 @@ import { SystemHealthCheck } from './health/system.health.js';
   ]
 })
 export class AppModule {}
-

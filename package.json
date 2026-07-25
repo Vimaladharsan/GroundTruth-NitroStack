@@ -11,7 +11,9 @@
     "start:prod": "nitrostack-cli start",
     "upgrade": "nitrostack-cli upgrade",
     "install:all": "nitrostack-cli install",
-    "widget": "npm --prefix src/widgets"
+    "widget": "npm --prefix src/widgets",
+    "smoke": "node scripts/smoke-test.mjs",
+    "verify": "npm run build && npm run smoke"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

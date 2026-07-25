@@ -8,54 +8,90 @@ Built for the **NitroStack × Amrita University Hackathon** — Track: Enterpris
 
 ---
 
-## Overview
+## The problem
 
-Every IT company runs on End-of-Day (EOD) reports, and the process is broken: reports are scattered, managers skim without verifying, and what an employee *claims* ("finished the login module") often doesn't match what actually happened in GitHub. By the time a blocker surfaces in standup, days of productivity are already lost.
+Every IT company runs on End-of-Day reports, and the process is broken. Reports scatter across Slack, email, and spreadsheets. Managers skim ten to twenty a day without verifying any of them. What someone *claims* — "finished the login module" — often doesn't match what actually landed in GitHub, and nobody checks. By the time a recurring blocker surfaces in a standup, three or four days of productivity are already gone.
 
-GroundTruth is an MCP (Model Context Protocol) server, built on the NitroStack TypeScript SDK, that:
+There is no system that verifies self-reported work against real activity, and none that proactively tells a manager what needs their attention instead of making them dig for it.
 
-1. Accepts free-text EOD reports from employees (via a widget-backed tool).
-2. Extracts structured claims from the report (tasks, blockers, sentiment).
-3. Cross-checks those claims against real GitHub commit/PR activity.
-4. Lets the connected AI agent *reason* about whether anything needs a manager's attention — not a hardcoded threshold, a live model decision.
-5. Surfaces a ranked daily digest to managers, and proactively alerts on repeated or significant mismatches.
+## The solution
+
+GroundTruth is an MCP server that reads daily EOD reports, cross-checks them against live GitHub activity, and surfaces only what genuinely needs a manager's attention.
+
+The important design decision: **every tool in this project is deterministic.** They fetch, diff, store, and notify. Not one of them decides whether something matters. That judgement lives in the `review_eod_submission` prompt, where the connected model reasons over the evidence and chooses its own next action. A scoring function with hardcoded thresholds would be an if-statement wearing a costume — this is what makes GroundTruth an agent rather than a report parser.
+
+### The agent loop
+
+For each submitted report, the model works through:
+
+1. **Perceive** — read the report and the claims parsed out of it (`extract_eod_summary`)
+2. **Verify** — pull the employee's real commits and PRs for that date (`crosscheck_activity`)
+3. **Reason** — weigh claimed work against real activity, and against prior days' blockers
+4. **Decide** — nothing to raise / worth noting / raise at standup / needs attention today
+5. **Act** — call `send_manager_alert` only where it judged one warranted
+
+The prompt explicitly instructs the model that a low match score is *not* on its own a reason to alert: meetings, design work, pairing, and code review all legitimately leave no commit trail. An agent that stays quiet when nothing is wrong is more useful than one that cries wolf.
 
 ## Architecture
 
 ```
-Employee submits EOD  ──►  submit_eod_report (tool + form widget)
-                                     │
-                                     ▼
-                          extract_eod_summary (tool)
-                                     │
-                                     ▼
-                          crosscheck_activity (tool)
-                          — pulls live GitHub commits/PRs —
-                                     │
-                                     ▼
-                 review_eod_submission (MCP Prompt)
-                 — agent reasons over claims vs. activity —
-                                     │
-                            reasoning decides
-                                     │
-                     ┌───────────────┴───────────────┐
-                     ▼                                ▼
-            send_manager_alert (tool)        generate_daily_digest
-                                              (tool + dashboard widget)
+src/
+├── app.module.ts            # registers the three feature modules
+├── index.ts                 # bootstrap
+├── lib/
+│   ├── text.ts              # claim / blocker / sentiment extraction (deterministic)
+│   └── uri.ts               # URI-template parameter matching for resources
+├── store/
+│   ├── store.ts             # single-file JSON persistence
+│   └── types.ts             # domain types
+└── modules/
+    ├── eod/                 # what people say they did, + the agent loop prompts
+    ├── github/              # what actually happened, per the GitHub API
+    └── alerts/              # how the agent escalates to a human
 ```
 
-**Resources:** `eod://reports/{employeeId}/{date}`, `github://commits/{employeeId}`, `github://pull-requests/{employeeId}`, `alerts://team/{teamId}`
+### Tools
 
-**Tools:** `submit_eod_report`, `extract_eod_summary`, `crosscheck_activity`, `send_manager_alert`, `generate_daily_digest`
+| Tool | Purpose |
+|---|---|
+| `open_eod_form` | Renders the submission form widget |
+| `submit_eod_report` | Stores a report and pre-parses claims, blockers, sentiment |
+| `extract_eod_summary` | Re-parses a stored report into structured claims |
+| `crosscheck_activity` | Pulls live GitHub commits/PRs and scores claim support |
+| `send_manager_alert` | Raises an alert — called only when the agent decides to |
+| `resolve_manager_alert` | Clears a handled alert |
+| `generate_daily_digest` | Builds the manager's dashboard, ordered by attention needed |
 
-**Prompt:** `review_eod_submission` — runs the perceive → reason → decide → act loop
+### Resources
 
-## Environment Setup
+| URI | Contents |
+|---|---|
+| `team://employees` | Team roster with GitHub usernames |
+| `eod://reports/{employeeId}/{date}` | One report plus its cross-check result |
+| `github://commits/{employeeId}` | Today's commits, live from GitHub |
+| `github://pull-requests/{employeeId}` | Today's PRs, live from GitHub |
+| `alerts://team/{teamId}` | Open alerts for a team |
 
-Requires Node.js 20.x (18+ minimum), npm, and the NitroStack CLI.
+### Prompts
+
+| Prompt | Purpose |
+|---|---|
+| `review_eod_submission` | The core agent loop for one employee |
+| `review_team_day` | Runs the loop across a whole team, then renders the digest |
+
+### Widgets
+
+| Widget | Shown by |
+|---|---|
+| `eod-form` | `open_eod_form` — employee submission form |
+| `crosscheck-result` | `crosscheck_activity` — claimed vs. actual, side by side |
+| `team-digest` | `generate_daily_digest` — manager dashboard |
+
+## Environment setup
+
+Requires Node.js 20.x (18+ minimum) and npm.
 
 ```bash
-node -v   # confirm 18+ (20.x recommended)
 npm install -g @nitrostack/cli
 ```
 
@@ -65,31 +101,45 @@ Copy the example env file and fill in your own values — **never commit `.env`*
 cp .env.example .env
 ```
 
-| Variable | Description |
-|---|---|
-| `GITHUB_TOKEN` | GitHub Personal Access Token, `repo` read scope — used by `crosscheck_activity` to pull real commit/PR data |
-| `GITHUB_ORG` | GitHub org/username the team's repos live under |
+| Variable | Required | Description |
+|---|---|---|
+| `GITHUB_TOKEN` | yes | GitHub Personal Access Token (classic), `repo` read scope. Used by `crosscheck_activity`. |
+| `GITHUB_ORG` | yes | GitHub org or username owning the repos to inspect |
+| `GITHUB_REPOS` | no | Comma-separated repos to restrict the check to. Blank scans the org's 30 most recently pushed repos. |
+| `NITRO_LOG_LEVEL` | no | Defaults to `info` |
+
+Before demoing, set each employee's `githubUsername` in `src/store/store.ts` to a real GitHub login, so commits attribute to the right person.
 
 ## Installation
 
 ```bash
-git clone https://github.com/<your-org>/GroundTruth-NitroStack.git
+git clone https://github.com/Vimaladharsan/GroundTruth-NitroStack.git
 cd GroundTruth-NitroStack
 npm install
 npm run dev
 ```
 
-This starts the MCP server and widget dev server. Connect the project in **NitroStudio** via *Add Server → Nitro Project* and open it in **Studio App Canvas** to explore Tools, Resources, and Prompts.
+Then connect the project in **NitroStudio**: *Add Server → Nitro Project*, browse to this folder, and open it in **Studio App Canvas**.
 
 ## Usage
 
-1. Submit an EOD report through the `submit_eod_report` widget (or call the tool directly from Studio's Tools page).
-2. In Studio's **AI Chat**, run the `review_eod_submission` prompt for an employee/date — watch the agent call `extract_eod_summary` and `crosscheck_activity`, reason over the result, and decide whether to alert.
-3. Open `generate_daily_digest` to see the ranked team summary for the day.
+1. Run `open_eod_form` and submit a report through the widget — try a deliberately vague claim like "worked on auth, mostly done".
+2. In Studio's **AI Chat**, run the `review_eod_submission` prompt for that employee. Watch the agent call `crosscheck_activity`, reason about the gap out loud, and decide whether to alert.
+3. Run `generate_daily_digest` to see the manager's dashboard, worst row first.
+
+## Testing
+
+```bash
+npm run verify
+```
+
+Builds the project, then drives the running MCP server over stdio through the full path — registration, submission, extraction, cross-check, alerting, digest ordering, and prompt retrieval. 18 assertions; exits non-zero on any failure.
+
+`crosscheck_activity` passes with or without a token: with one it hits the real GitHub API, without one it must return a clear configuration error rather than crashing.
 
 ## Deployment
 
-Deployed via NitroCloud, connected to this repository's default branch for auto-deploy on push. See the NitroStack Studio Handbook for the Studio → Deploy flow and GitHub auto-deploy setup.
+Deployed to NitroCloud, with this repository's default branch connected for auto-deploy on push. See the NitroStack Studio Handbook for the Studio deploy flow and GitHub auto-deploy setup.
 
 ## License
 

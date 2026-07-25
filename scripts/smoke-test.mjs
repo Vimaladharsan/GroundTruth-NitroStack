@@ -1,0 +1,220 @@
+/**
+ * End-to-end smoke test for the GroundTruth MCP server.
+ *
+ * Speaks raw JSON-RPC over stdio to the built server and walks the whole agent
+ * path: register, submit a report, extract claims, cross-check, alert, digest.
+ *
+ * Run `npm run build` first, then `npm run smoke`. Exits non-zero on failure,
+ * so it is safe to wire into CI.
+ *
+ * crosscheck_activity passes either way here: with GITHUB_TOKEN set it hits the
+ * real API, and without one it must return a clear configuration error rather
+ * than crashing.
+ */
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const PROJECT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const child = spawn('node', ['dist/index.js'], {
+  cwd: PROJECT,
+  stdio: ['pipe', 'pipe', 'pipe'],
+  env: { ...process.env, NODE_ENV: 'development', MCP_TRANSPORT_TYPE: 'stdio' },
+});
+
+let buf = '';
+const pending = new Map();
+let nextId = 1;
+
+child.stdout.on('data', (chunk) => {
+  buf += chunk.toString();
+  let idx;
+  while ((idx = buf.indexOf('\n')) >= 0) {
+    const line = buf.slice(0, idx).trim();
+    buf = buf.slice(idx + 1);
+    if (!line) continue;
+    let msg;
+    try { msg = JSON.parse(line); } catch { continue; }
+    if (msg.id && pending.has(msg.id)) {
+      const { resolve } = pending.get(msg.id);
+      pending.delete(msg.id);
+      resolve(msg);
+    }
+  }
+});
+
+const stderrLines = [];
+child.stderr.on('data', (d) => stderrLines.push(d.toString()));
+
+function send(method, params) {
+  const id = nextId++;
+  const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    child.stdin.write(payload);
+    setTimeout(() => {
+      if (pending.has(id)) {
+        pending.delete(id);
+        reject(new Error(`timeout: ${method}`));
+      }
+    }, 30000);
+  });
+}
+
+function notify(method, params) {
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method, params }) + '\n');
+}
+
+const results = [];
+function check(name, ok, detail = '') {
+  results.push({ name, ok, detail });
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+}
+
+function toolJson(res) {
+  const text = res?.result?.content?.find((c) => c.type === 'text')?.text;
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+try {
+  const init = await send('initialize', {
+    protocolVersion: '2024-11-05',
+    capabilities: {},
+    clientInfo: { name: 'smoke', version: '1.0.0' },
+  });
+  check('initialize', !!init.result, init.result?.serverInfo?.name);
+  notify('notifications/initialized', {});
+
+  // --- Registration ---
+  const tools = await send('tools/list', {});
+  const toolNames = (tools.result?.tools ?? []).map((t) => t.name).sort();
+  const expectedTools = [
+    'crosscheck_activity', 'extract_eod_summary', 'generate_daily_digest',
+    'open_eod_form', 'resolve_manager_alert', 'send_manager_alert', 'submit_eod_report',
+  ];
+  const missing = expectedTools.filter((t) => !toolNames.includes(t));
+  check('all 7 tools registered', missing.length === 0,
+    missing.length ? `missing ${missing.join(',')}` : toolNames.join(', '));
+
+  const prompts = await send('prompts/list', {});
+  const promptNames = (prompts.result?.prompts ?? []).map((p) => p.name);
+  check('prompts registered', promptNames.includes('review_eod_submission') && promptNames.includes('review_team_day'),
+    promptNames.join(', '));
+
+  const resources = await send('resources/list', {});
+  const resNames = (resources.result?.resources ?? []).map((r) => r.uri ?? r.uriTemplate);
+  const templates = await send('resources/templates/list', {}).catch(() => ({ result: {} }));
+  const tmplNames = (templates.result?.resourceTemplates ?? []).map((r) => r.uriTemplate);
+  check('resources registered', resNames.length + tmplNames.length >= 4,
+    [...resNames, ...tmplNames].join(', '));
+
+  // --- Roster resource ---
+  const roster = await send('resources/read', { uri: 'team://employees' });
+  const rosterText = roster.result?.contents?.[0]?.text;
+  const rosterData = rosterText ? JSON.parse(rosterText) : null;
+  check('team://employees returns roster', rosterData?.count === 4, `count=${rosterData?.count}`);
+
+  const empId = rosterData?.employees?.[0]?.id;
+
+  // --- Submit a report with a deliberately unsupported completion claim ---
+  const submit = await send('tools/call', {
+    name: 'submit_eod_report',
+    arguments: {
+      employeeId: empId,
+      reportText: 'Finished the login module and wired up the session cache. Still blocked on the staging database credentials.',
+      confidence: 4,
+    },
+  });
+  const submitData = toolJson(submit);
+  check('submit_eod_report stores report', submitData?.stored === true, `reportId=${submitData?.reportId}`);
+  check('extraction found claims', (submitData?.claims?.length ?? 0) >= 1,
+    `${submitData?.claims?.length} claims, ${submitData?.blockers?.length} blockers, sentiment=${submitData?.sentiment}`);
+  check('blocker detected', (submitData?.blockers?.length ?? 0) >= 1,
+    JSON.stringify(submitData?.blockers));
+
+  // --- Report resource round-trip ---
+  const today = submitData?.date;
+  const reportRes = await send('resources/read', { uri: `eod://reports/${empId}/${today}` });
+  const reportData = JSON.parse(reportRes.result?.contents?.[0]?.text ?? '{}');
+  check('eod://reports/{id}/{date} resolves params', reportData?.submitted === true,
+    `date=${reportData?.date}`);
+
+  // --- extract_eod_summary ---
+  const extract = await send('tools/call', { name: 'extract_eod_summary', arguments: { employeeId: empId } });
+  const extractData = toolJson(extract);
+  check('extract_eod_summary re-parses', Array.isArray(extractData?.claims),
+    `${extractData?.claims?.length} claims`);
+
+  // --- crosscheck without a token should fail with a helpful message ---
+  const cross = await send('tools/call', { name: 'crosscheck_activity', arguments: { employeeId: empId } });
+  const crossErr = cross.result?.content?.find((c) => c.type === 'text')?.text ?? '';
+  const isConfigError = /GITHUB_TOKEN|GITHUB_ORG/.test(crossErr);
+  const crossData = toolJson(cross);
+  const gotRealData = crossData && typeof crossData === 'object' && 'matchScore' in crossData;
+  check('crosscheck_activity behaves without token', isConfigError || gotRealData,
+    gotRealData ? `ran live, matchScore=${crossData.matchScore}` : 'clear config error returned');
+
+  // --- Agent decides to alert ---
+  const alert = await send('tools/call', {
+    name: 'send_manager_alert',
+    arguments: {
+      employeeId: empId,
+      reason: 'Reported the login module as finished but no PR was opened, and the staging credentials blocker is on its second day.',
+      severity: 'high',
+    },
+  });
+  const alertData = toolJson(alert);
+  check('send_manager_alert raises alert', alertData?.raised === true, `id=${alertData?.alertId}`);
+
+  const alertsRes = await send('resources/read', { uri: 'alerts://team/team-platform' });
+  const alertsData = JSON.parse(alertsRes.result?.contents?.[0]?.text ?? '{}');
+  check('alerts://team/{teamId} lists it', alertsData?.openCount >= 1,
+    `open=${alertsData?.openCount} high=${alertsData?.bySeverity?.high}`);
+
+  // --- Digest ---
+  const digest = await send('tools/call', { name: 'generate_daily_digest', arguments: { teamId: 'team-platform' } });
+  const digestData = toolJson(digest);
+  check('generate_daily_digest builds rows', (digestData?.rows?.length ?? 0) === 4,
+    `submitted=${digestData?.summary?.submitted} alerts=${digestData?.summary?.openAlerts}`);
+  check('digest ranks alerted person first',
+    digestData?.rows?.[0]?.employee?.id === empId,
+    `first=${digestData?.rows?.[0]?.employee?.name} rank=${digestData?.rows?.[0]?.attentionRank}`);
+
+  // --- Form widget tool ---
+  const form = await send('tools/call', { name: 'open_eod_form', arguments: {} });
+  const formData = toolJson(form);
+  check('open_eod_form returns roster', (formData?.employees?.length ?? 0) === 4);
+
+  // --- The agent-loop prompt ---
+  const prompt = await send('prompts/get', {
+    name: 'review_eod_submission',
+    arguments: { employeeId: empId },
+  });
+  const promptContent = prompt.result?.messages?.[0]?.content;
+  const contentStr =
+    typeof promptContent === 'string' ? promptContent : (promptContent?.text ?? '');
+  check('review_eod_submission returns loop instructions',
+    /Perceive/.test(contentStr) && /crosscheck_activity/.test(contentStr) && /Decide/.test(contentStr),
+    `${contentStr.length} chars`);
+
+  // --- Resolve alert ---
+  const resolved = await send('tools/call', {
+    name: 'resolve_manager_alert',
+    arguments: { alertId: alertData.alertId },
+  });
+  check('resolve_manager_alert clears it', toolJson(resolved)?.resolved === true);
+
+} catch (err) {
+  check('harness completed', false, err.message);
+} finally {
+  child.kill();
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  if (failed.length) {
+    console.log('\n--- server stderr (tail) ---');
+    console.log(stderrLines.join('').split('\n').slice(-40).join('\n'));
+  }
+  process.exit(failed.length ? 1 : 0);
+}
