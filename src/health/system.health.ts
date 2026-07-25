@@ -23,22 +23,29 @@ export class SystemHealthCheck implements HealthCheckInterface {
       const uptime = Date.now() - this.startTime;
       const uptimeSeconds = Math.floor(uptime / 1000);
       
-      // Convert memory to MB
       const memoryUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
       const memoryTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
-      
-      // Consider unhealthy if memory usage is > 90%
-      const memoryPercent = (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100;
-      const isHealthy = memoryPercent < 90;
-      
+      const rssMB = Math.round(memoryUsage.rss / 1024 / 1024);
+
+      /*
+       * heapUsed/heapTotal is not a health signal. V8 sizes heapTotal to just
+       * above current demand, so a small idle process sits near 90% by design —
+       * the scaffold's original check reported "degraded" on a perfectly healthy
+       * 22MB server. Judge against resident memory versus a real ceiling instead,
+       * so the warning means something when it does fire.
+       */
+      const RSS_CEILING_MB = 512;
+      const isHealthy = rssMB < RSS_CEILING_MB;
+
       return {
         status: isHealthy ? 'up' : 'degraded',
-        message: isHealthy 
-          ? 'System is healthy' 
-          : 'High memory usage detected',
+        message: isHealthy
+          ? 'System is healthy'
+          : `Resident memory above ${RSS_CEILING_MB}MB`,
         details: {
           uptime: `${uptimeSeconds}s`,
-          memory: `${memoryUsedMB}MB / ${memoryTotalMB}MB (${Math.round(memoryPercent)}%)`,
+          rss: `${rssMB}MB / ${RSS_CEILING_MB}MB ceiling`,
+          heap: `${memoryUsedMB}MB / ${memoryTotalMB}MB`,
           pid: process.pid,
           nodeVersion: process.version,
         },
