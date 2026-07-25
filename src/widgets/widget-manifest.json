@@ -12,16 +12,36 @@
           "data": {
             "date": "2026-07-25",
             "employees": [
-              { "id": "emp-1", "name": "Aarav Menon", "role": "Backend Engineer" },
-              { "id": "emp-2", "name": "Divya Raghavan", "role": "Frontend Engineer" },
-              { "id": "emp-3", "name": "Karthik Iyer", "role": "Full-stack Engineer" },
-              { "id": "emp-4", "name": "Meera Nair", "role": "QA Engineer" }
+              {
+                "id": "emp-1",
+                "name": "Aarav Menon",
+                "role": "Backend Engineer"
+              },
+              {
+                "id": "emp-2",
+                "name": "Divya Raghavan",
+                "role": "Frontend Engineer"
+              },
+              {
+                "id": "emp-3",
+                "name": "Karthik Iyer",
+                "role": "Full-stack Engineer"
+              },
+              {
+                "id": "emp-4",
+                "name": "Meera Nair",
+                "role": "QA Engineer"
+              }
             ],
             "selectedEmployeeId": "emp-1"
           }
         }
       ],
-      "tags": ["eod", "form", "employee"]
+      "tags": [
+        "eod",
+        "form",
+        "employee"
+      ]
     },
     {
       "uri": "/crosscheck-result",
@@ -49,11 +69,15 @@
                 "supported": false
               }
             ],
-            "blockers": ["Still blocked on the staging database credentials"],
+            "blockers": [
+              "Still blocked on the staging database credentials"
+            ],
             "priorBlockers": [
               {
                 "date": "2026-07-24",
-                "blockers": ["Still blocked on the staging database credentials"]
+                "blockers": [
+                  "Still blocked on the staging database credentials"
+                ]
               }
             ],
             "commits": [
@@ -117,11 +141,17 @@
             ],
             "matchScore": 1,
             "verdict": "consistent",
-            "observations": ["Found 1 commit(s) and 1 pull request(s)."]
+            "observations": [
+              "Found 1 commit(s) and 1 pull request(s)."
+            ]
           }
         }
       ],
-      "tags": ["verification", "github", "eod"]
+      "tags": [
+        "verification",
+        "github",
+        "eod"
+      ]
     },
     {
       "uri": "/team-digest",
@@ -144,13 +174,21 @@
             },
             "rows": [
               {
-                "employee": { "id": "emp-1", "name": "Aarav Menon", "role": "Backend Engineer" },
+                "employee": {
+                  "id": "emp-1",
+                  "name": "Aarav Menon",
+                  "role": "Backend Engineer"
+                },
                 "submitted": true,
                 "reportText": "Finished the login module. Still blocked on the staging database credentials.",
                 "confidence": 4,
                 "sentiment": "negative",
-                "blockers": ["Still blocked on the staging database credentials"],
-                "recurringBlockers": ["Still blocked on the staging database credentials"],
+                "blockers": [
+                  "Still blocked on the staging database credentials"
+                ],
+                "recurringBlockers": [
+                  "Still blocked on the staging database credentials"
+                ],
                 "verified": true,
                 "matchScore": 0,
                 "verdict": "unsupported",
@@ -166,7 +204,11 @@
                 "attentionRank": 100
               },
               {
-                "employee": { "id": "emp-4", "name": "Meera Nair", "role": "QA Engineer" },
+                "employee": {
+                  "id": "emp-4",
+                  "name": "Meera Nair",
+                  "role": "QA Engineer"
+                },
                 "submitted": false,
                 "reportText": null,
                 "confidence": null,
@@ -182,7 +224,11 @@
                 "attentionRank": 10
               },
               {
-                "employee": { "id": "emp-3", "name": "Karthik Iyer", "role": "Full-stack Engineer" },
+                "employee": {
+                  "id": "emp-3",
+                  "name": "Karthik Iyer",
+                  "role": "Full-stack Engineer"
+                },
                 "submitted": true,
                 "reportText": "Paired with Divya on the widget layout, mostly review and design today.",
                 "confidence": 4,
@@ -198,7 +244,11 @@
                 "attentionRank": 15
               },
               {
-                "employee": { "id": "emp-2", "name": "Divya Raghavan", "role": "Frontend Engineer" },
+                "employee": {
+                  "id": "emp-2",
+                  "name": "Divya Raghavan",
+                  "role": "Frontend Engineer"
+                },
                 "submitted": true,
                 "reportText": "Completed the digest dashboard widget and opened a PR for review.",
                 "confidence": 5,
@@ -217,7 +267,267 @@
           }
         }
       ],
-      "tags": ["manager", "digest", "dashboard"]
+      "tags": [
+        "manager",
+        "digest",
+        "dashboard"
+      ]
+    },
+    {
+      "uri": "/wellbeing-trend",
+      "name": "Wellbeing Trend",
+      "description": "Confidence and tone per person across recent days \u2014 early burnout signal",
+      "examples": [
+        {
+          "name": "One person declining",
+          "description": "A sliding confidence trend alongside a blocker that will not clear",
+          "data": {
+            "teamId": "team-platform",
+            "days": 5,
+            "dateRange": {
+              "from": "2026-07-21",
+              "to": "2026-07-25"
+            },
+            "people": [
+              {
+                "employee": {
+                  "id": "emp-1",
+                  "name": "Aarav Menon",
+                  "role": "Backend Engineer"
+                },
+                "series": [
+                  {
+                    "date": "2026-07-21",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-22",
+                    "submitted": true,
+                    "confidence": 3,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  },
+                  {
+                    "date": "2026-07-23",
+                    "submitted": true,
+                    "confidence": 3,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  },
+                  {
+                    "date": "2026-07-24",
+                    "submitted": true,
+                    "confidence": 2,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  },
+                  {
+                    "date": "2026-07-25",
+                    "submitted": true,
+                    "confidence": 2,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  }
+                ],
+                "currentConfidence": 2,
+                "currentSentiment": "negative",
+                "confidenceDelta": -2,
+                "direction": "declining",
+                "consecutiveNegativeDays": 4,
+                "recurringBlockers": [
+                  {
+                    "blocker": "Still blocked on the staging database credentials, waiting on the infra team",
+                    "days": 4,
+                    "dates": [
+                      "2026-07-22",
+                      "2026-07-23",
+                      "2026-07-24",
+                      "2026-07-25"
+                    ]
+                  }
+                ],
+                "missedDays": 0,
+                "signals": [
+                  "Confidence fell 2 point(s) across the window, from 4 to 2.",
+                  "Tone has read negative 4 submitted days running.",
+                  "Blocker unresolved across 4 days: \"Still blocked on the staging database credentials, waiting on the infra team\"."
+                ]
+              },
+              {
+                "employee": {
+                  "id": "emp-4",
+                  "name": "Meera Nair",
+                  "role": "QA Engineer"
+                },
+                "series": [
+                  {
+                    "date": "2026-07-21",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "positive",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-22",
+                    "submitted": true,
+                    "confidence": 3,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-23",
+                    "submitted": true,
+                    "confidence": 2,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  },
+                  {
+                    "date": "2026-07-24",
+                    "submitted": false,
+                    "confidence": null,
+                    "sentiment": null,
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-25",
+                    "submitted": true,
+                    "confidence": 2,
+                    "sentiment": "negative",
+                    "blockerCount": 1
+                  }
+                ],
+                "currentConfidence": 2,
+                "currentSentiment": "negative",
+                "confidenceDelta": -2,
+                "direction": "declining",
+                "consecutiveNegativeDays": 1,
+                "recurringBlockers": [],
+                "missedDays": 1,
+                "signals": [
+                  "Confidence fell 2 point(s) across the window, from 4 to 2.",
+                  "1 of 5 days have no report."
+                ]
+              },
+              {
+                "employee": {
+                  "id": "emp-3",
+                  "name": "Karthik Iyer",
+                  "role": "Full-stack Engineer"
+                },
+                "series": [
+                  {
+                    "date": "2026-07-21",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-22",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-23",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-24",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-25",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  }
+                ],
+                "currentConfidence": 4,
+                "currentSentiment": "neutral",
+                "confidenceDelta": 0,
+                "direction": "steady",
+                "consecutiveNegativeDays": 0,
+                "recurringBlockers": [],
+                "missedDays": 0,
+                "signals": [
+                  "No trend signals \u2014 confidence and tone are holding steady."
+                ]
+              },
+              {
+                "employee": {
+                  "id": "emp-2",
+                  "name": "Divya Raghavan",
+                  "role": "Frontend Engineer"
+                },
+                "series": [
+                  {
+                    "date": "2026-07-21",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "neutral",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-22",
+                    "submitted": true,
+                    "confidence": 4,
+                    "sentiment": "positive",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-23",
+                    "submitted": true,
+                    "confidence": 5,
+                    "sentiment": "positive",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-24",
+                    "submitted": true,
+                    "confidence": 5,
+                    "sentiment": "positive",
+                    "blockerCount": 0
+                  },
+                  {
+                    "date": "2026-07-25",
+                    "submitted": true,
+                    "confidence": 5,
+                    "sentiment": "positive",
+                    "blockerCount": 0
+                  }
+                ],
+                "currentConfidence": 5,
+                "currentSentiment": "positive",
+                "confidenceDelta": 1,
+                "direction": "improving",
+                "consecutiveNegativeDays": 0,
+                "recurringBlockers": [],
+                "missedDays": 0,
+                "signals": [
+                  "No trend signals \u2014 confidence and tone are holding steady."
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "trend",
+        "wellbeing",
+        "manager"
+      ]
     }
   ],
   "generatedAt": "2026-07-25T00:00:00.000Z"

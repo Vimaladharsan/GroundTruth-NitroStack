@@ -35,6 +35,19 @@ export const GROUNDTRUTH_CSS = `
   --gt-radius: 10px;
   --gt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
+  /*
+   * Chart marks get their own palette, separate from the UI chip colours.
+   * These specific values passed the data-viz validator against this mode's
+   * surface — lightness band, chroma floor, CVD separation, normal-vision
+   * floor, and contrast. Do not hand-tune them; re-run the validator instead.
+   * CVD separation lands in the 6–8 band, which is only legal alongside
+   * secondary encoding, so every sparkline also carries a text trend label.
+   */
+  --gt-mark-good: #008c41;
+  --gt-mark-warn: #8b5300;
+  --gt-mark-bad: #ec3f3a;
+  --gt-grid: #e4e7ec;
+
   color: var(--gt-text);
   background: var(--gt-bg);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -63,6 +76,11 @@ export const GROUNDTRUTH_CSS = `
     --gt-warn-soft: #2b2216;
     --gt-bad: #ef8578;
     --gt-bad-soft: #2d1a18;
+
+    --gt-mark-good: #13a15e;
+    --gt-mark-warn: #a77b00;
+    --gt-mark-bad: #e65f55;
+    --gt-grid: #2a303a;
   }
 }
 
@@ -84,6 +102,11 @@ export const GROUNDTRUTH_CSS = `
   --gt-warn-soft: #2b2216;
   --gt-bad: #ef8578;
   --gt-bad-soft: #2d1a18;
+
+  --gt-mark-good: #13a15e;
+  --gt-mark-warn: #a77b00;
+  --gt-mark-bad: #e65f55;
+  --gt-grid: #2a303a;
 }
 
 .gt[data-gt-theme='light'] {
@@ -103,6 +126,11 @@ export const GROUNDTRUTH_CSS = `
   --gt-warn-soft: #faeed9;
   --gt-bad: #b0382f;
   --gt-bad-soft: #fbe6e3;
+
+  --gt-mark-good: #008c41;
+  --gt-mark-warn: #8b5300;
+  --gt-mark-bad: #ec3f3a;
+  --gt-grid: #e4e7ec;
 }
 
 .gt * { box-sizing: border-box; }

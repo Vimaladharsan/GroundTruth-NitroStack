@@ -36,8 +36,11 @@ The prompt explicitly instructs the model that a low match score is *not* on its
 
 ```
 src/
-├── app.module.ts            # registers the three feature modules
+├── app.module.ts            # registers the feature modules
 ├── index.ts                 # bootstrap
+├── health/
+│   ├── system.health.ts     # memory and uptime
+│   └── github.health.ts     # GitHub credentials and rate limit
 ├── lib/
 │   ├── text.ts              # claim / blocker / sentiment extraction (deterministic)
 │   └── uri.ts               # URI-template parameter matching for resources
@@ -47,7 +50,9 @@ src/
 └── modules/
     ├── eod/                 # what people say they did, + the agent loop prompts
     ├── github/              # what actually happened, per the GitHub API
-    └── alerts/              # how the agent escalates to a human
+    ├── alerts/              # how the agent escalates to a human
+    ├── insights/            # trends, search, and manager Q&A across days
+    └── demo/                # seeding helpers (the one module a real deploy drops)
 ```
 
 ### Tools
@@ -61,6 +66,11 @@ src/
 | `send_manager_alert` | Raises an alert — called only when the agent decides to |
 | `resolve_manager_alert` | Clears a handled alert |
 | `generate_daily_digest` | Builds the manager's dashboard, ordered by attention needed |
+| `analyze_wellbeing_trend` | Confidence, tone, and recurring blockers across days |
+| `search_reports` | Keyword / person / date-range search over stored reports |
+| `seed_demo_data` | Creates several days of history for a demo |
+| `reset_demo_data` | Clears reports, cross-checks, and alerts |
+| `set_employee_github` | Points an employee at a real GitHub login |
 
 ### Resources
 
@@ -78,6 +88,7 @@ src/
 |---|---|
 | `review_eod_submission` | The core agent loop for one employee |
 | `review_team_day` | Runs the loop across a whole team, then renders the digest |
+| `ask_about_team` | Answers a manager's open question from the stored data |
 
 ### Widgets
 
@@ -86,6 +97,7 @@ src/
 | `eod-form` | `open_eod_form` — employee submission form |
 | `crosscheck-result` | `crosscheck_activity` — claimed vs. actual, side by side |
 | `team-digest` | `generate_daily_digest` — manager dashboard |
+| `wellbeing-trend` | `analyze_wellbeing_trend` — confidence sparklines per person |
 
 ## Environment setup
 
@@ -123,9 +135,20 @@ Then connect the project in **NitroStudio**: *Add Server → Nitro Project*, bro
 
 ## Usage
 
-1. Run `open_eod_form` and submit a report through the widget — try a deliberately vague claim like "worked on auth, mostly done".
-2. In Studio's **AI Chat**, run the `review_eod_submission` prompt for that employee. Watch the agent call `crosscheck_activity`, reason about the gap out loud, and decide whether to alert.
-3. Run `generate_daily_digest` to see the manager's dashboard, worst row first.
+**Demo setup (once):**
+
+1. Run `set_employee_github` to point `emp-1` at a GitHub login you can actually commit as.
+2. Run `seed_demo_data` with `days: 3`. This creates prior-day history — several signals only mean anything across days, and it deliberately leaves today empty so a report can be submitted live.
+
+**The flow:**
+
+1. Run `open_eod_form` and submit today's report through the widget. Try a claim that overstates things, like "finished the login module", while your actual commits that day are something else.
+2. In Studio's **AI Chat**, run the `review_eod_submission` prompt for that employee. Watch the agent call `crosscheck_activity`, reason about the gap out loud, and decide for itself whether to alert.
+3. Run `generate_daily_digest` for the manager's dashboard, worst row first.
+4. Run `analyze_wellbeing_trend` to see the multi-day picture — the recurring blocker and the confidence slide.
+5. Try `ask_about_team` with a real question: *"what has been blocking the team this week?"*
+
+The seeded team is four deliberately different cases, and the interesting one is Karthik: his work is review, pairing, and design, so he leaves almost no commits. A system that flags him is producing false positives. The prompt is written to make the agent recognise that and stay quiet.
 
 ## Testing
 
@@ -133,9 +156,16 @@ Then connect the project in **NitroStudio**: *Add Server → Nitro Project*, bro
 npm run verify
 ```
 
-Builds the project, then drives the running MCP server over stdio through the full path — registration, submission, extraction, cross-check, alerting, digest ordering, and prompt retrieval. 18 assertions; exits non-zero on any failure.
+Builds, then drives the MCP server over stdio through the whole path — registration, submission, extraction, cross-check, alerting, digest ordering, trend signals, search, prompts, and health checks. **32 assertions**, exits non-zero on any failure.
 
-`crosscheck_activity` passes with or without a token: with one it hits the real GitHub API, without one it must return a clear configuration error rather than crashing.
+Two properties worth calling out, because they are the ones that break quietly:
+
+- `crosscheck_activity` passes with or without a token. With one it hits the real GitHub API; without one it must return a clear configuration error rather than crash.
+- The suite asserts the *absence* of false signals as well as the presence of real ones — the healthy employee and the non-code employee must both come back unflagged.
+
+The sparkline palette in `src/widgets/app/_shared/tokens.tsx` was chosen by running a
+contrast/colour-blindness validator against each theme's surface rather than by eye, and
+carries a text trend label alongside the colour so the chart never encodes state in hue alone.
 
 ## Deployment
 

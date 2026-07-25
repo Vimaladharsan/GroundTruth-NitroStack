@@ -206,14 +206,44 @@ class Store {
     this.persist();
     return alert;
   }
+
+  // ---- Maintenance ----
+
+  /** Drops reports, checks, and alerts but keeps the roster. Used by the demo tools. */
+  clearOperationalData(): void {
+    this.data.reports = [];
+    this.data.activityChecks = [];
+    this.data.alerts = [];
+    this.persist();
+  }
+
+  /** Overwrite an employee's GitHub login, so a demo can attribute commits to a real account. */
+  setGithubUsername(employeeId: string, githubUsername: string): Employee | undefined {
+    const employee = this.data.employees.find((e) => e.id === employeeId);
+    if (!employee) return undefined;
+    employee.githubUsername = githubUsername;
+    this.persist();
+    return employee;
+  }
 }
 
 /** Shared instance — the store is infrastructure, so it is not a DI provider. */
 export const store = new Store();
 
+/** Format a Date as YYYY-MM-DD in local time. */
+export function toDateString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** Today in YYYY-MM-DD, local time. */
 export function today(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return toDateString(new Date());
+}
+
+/** The date `n` days before today, in YYYY-MM-DD. */
+export function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toDateString(d);
 }

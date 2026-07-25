@@ -91,17 +91,21 @@ try {
   const tools = await send('tools/list', {});
   const toolNames = (tools.result?.tools ?? []).map((t) => t.name).sort();
   const expectedTools = [
-    'crosscheck_activity', 'extract_eod_summary', 'generate_daily_digest',
-    'open_eod_form', 'resolve_manager_alert', 'send_manager_alert', 'submit_eod_report',
+    'analyze_wellbeing_trend', 'crosscheck_activity', 'extract_eod_summary',
+    'generate_daily_digest', 'open_eod_form', 'reset_demo_data',
+    'resolve_manager_alert', 'search_reports', 'seed_demo_data',
+    'send_manager_alert', 'set_employee_github', 'submit_eod_report',
   ];
   const missing = expectedTools.filter((t) => !toolNames.includes(t));
-  check('all 7 tools registered', missing.length === 0,
-    missing.length ? `missing ${missing.join(',')}` : toolNames.join(', '));
+  check(`all ${expectedTools.length} tools registered`, missing.length === 0,
+    missing.length ? `missing ${missing.join(',')}` : `${toolNames.length} total`);
 
   const prompts = await send('prompts/list', {});
   const promptNames = (prompts.result?.prompts ?? []).map((p) => p.name);
-  check('prompts registered', promptNames.includes('review_eod_submission') && promptNames.includes('review_team_day'),
-    promptNames.join(', '));
+  const expectedPrompts = ['review_eod_submission', 'review_team_day', 'ask_about_team'];
+  const missingPrompts = expectedPrompts.filter((p) => !promptNames.includes(p));
+  check('prompts registered', missingPrompts.length === 0,
+    missingPrompts.length ? `missing ${missingPrompts.join(',')}` : promptNames.join(', '));
 
   const resources = await send('resources/list', {});
   const resNames = (resources.result?.resources ?? []).map((r) => r.uri ?? r.uriTemplate);
@@ -205,6 +209,84 @@ try {
     arguments: { alertId: alertData.alertId },
   });
   check('resolve_manager_alert clears it', toolJson(resolved)?.resolved === true);
+
+  // --- Search over the single stored report ---
+  const search = await send('tools/call', {
+    name: 'search_reports',
+    arguments: { query: 'login module' },
+  });
+  const searchData = toolJson(search);
+  check('search_reports finds by keyword', (searchData?.resultCount ?? 0) >= 1,
+    `${searchData?.resultCount} result(s)`);
+
+  const searchNone = await send('tools/call', {
+    name: 'search_reports',
+    arguments: { query: 'zzzznonexistentterm' },
+  });
+  check('search_reports reports empty honestly', toolJson(searchNone)?.resultCount === 0);
+
+  // --- Seeding history, which the trend signals depend on ---
+  const seed = await send('tools/call', {
+    name: 'seed_demo_data',
+    arguments: { days: 4, includeToday: false },
+  });
+  const seedData = toolJson(seed);
+  check('seed_demo_data creates history', seedData?.reportsCreated === 16,
+    `${seedData?.reportsCreated} reports, ${seedData?.dateRange?.from}..${seedData?.dateRange?.to}`);
+  check('seed leaves today empty for a live demo', seedData?.todayLeftEmpty === true);
+
+  // --- Trend analysis over the seeded history ---
+  const trend = await send('tools/call', {
+    name: 'analyze_wellbeing_trend',
+    arguments: { teamId: 'team-platform', days: 5 },
+  });
+  const trendData = toolJson(trend);
+  check('analyze_wellbeing_trend covers the team', trendData?.people?.length === 4);
+
+  const aarav = trendData?.people?.find((p) => p.employee.id === 'emp-1');
+  check('detects the recurring blocker', (aarav?.recurringBlockers?.[0]?.days ?? 0) >= 3,
+    `${aarav?.recurringBlockers?.[0]?.days} days running`);
+  check('detects declining confidence', aarav?.direction === 'declining',
+    `delta=${aarav?.confidenceDelta}`);
+
+  const divya = trendData?.people?.find((p) => p.employee.id === 'emp-2');
+  check('healthy person not flagged', divya?.direction !== 'declining'
+    && divya?.recurringBlockers?.length === 0, `direction=${divya?.direction}`);
+
+  const karthik = trendData?.people?.find((p) => p.employee.id === 'emp-3');
+  check('non-code worker shows no false signal', karthik?.direction === 'steady'
+    && karthik?.recurringBlockers?.length === 0, `direction=${karthik?.direction}`);
+
+  check('trend ranks the concerning person first',
+    trendData?.people?.[0]?.employee?.id === 'emp-1',
+    `first=${trendData?.people?.[0]?.employee?.name}`);
+
+  // --- Manager Q&A prompt ---
+  const askPrompt = await send('prompts/get', {
+    name: 'ask_about_team',
+    arguments: { question: 'What is blocking the team this week?' },
+  });
+  const askContent = askPrompt.result?.messages?.[0]?.content;
+  const askStr = typeof askContent === 'string' ? askContent : (askContent?.text ?? '');
+  check('ask_about_team embeds the question and tools',
+    /blocking the team this week/.test(askStr) && /search_reports/.test(askStr),
+    `${askStr.length} chars`);
+
+  // --- Health checks, including the GitHub credential probe ---
+  const health = await send('resources/read', { uri: 'health://checks' });
+  const healthText = health.result?.contents?.[0]?.text ?? '{}';
+  check('health resource includes a github check', /github/i.test(healthText));
+
+  // --- Reset leaves the roster intact ---
+  const reset = await send('tools/call', { name: 'reset_demo_data', arguments: {} });
+  const resetData = toolJson(reset);
+  check('reset_demo_data keeps the roster', resetData?.reset === true
+    && resetData?.employeesKept === 4);
+
+  const afterReset = await send('tools/call', {
+    name: 'search_reports', arguments: {},
+  });
+  check('reset clears all reports', toolJson(afterReset)?.resultCount === 0);
 
 } catch (err) {
   check('harness completed', false, err.message);
