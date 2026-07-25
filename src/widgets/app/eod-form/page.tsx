@@ -126,11 +126,25 @@ export default function EodForm() {
             </div>
           )}
 
+          {/*
+            Carries an abridged version of the review_eod_submission loop rather
+            than a bare "review this". A button that produces visibly worse
+            reasoning than the documented path is a trap: the model needs the
+            rubric, and above all needs telling that a low match score is not on
+            its own grounds to alert.
+          */}
           <button
             className="gt-btn"
             onClick={() =>
               sendFollowUpMessage(
-                `Review the EOD report for ${currentEmployee} on ${data.date}.`,
+                `Review ${name}'s end-of-day report for ${data.date}. ` +
+                  'Call crosscheck_activity to compare the claims against their real GitHub ' +
+                  'commits and pull requests, then reason out loud about whether any gap is ' +
+                  'genuine — meetings, review, pairing and design work legitimately leave no ' +
+                  'commits, so a low match score alone is not a problem. Weigh any blocker ' +
+                  'that has repeated across days more heavily than a single day of mismatch. ' +
+                  'Call send_manager_alert only if you judge it warranted, with a specific ' +
+                  'evidence-based reason; otherwise say plainly that nothing needs raising.',
               )
             }
           >
