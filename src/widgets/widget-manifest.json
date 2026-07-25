@@ -159,18 +159,18 @@
       "description": "The whole team's day, ordered by how much attention each person needs",
       "examples": [
         {
-          "name": "Day with one escalation",
-          "description": "One high-severity alert plus a missing report",
+          "name": "Full team",
+          "description": "Twelve people across a team, worst first, with the two flagged carrying their reasons",
           "data": {
             "teamId": "team-platform",
-            "date": "2026-07-25",
+            "date": "2026-07-26",
             "summary": {
-              "headcount": 4,
-              "submitted": 3,
-              "missing": 1,
-              "verified": 3,
+              "headcount": 12,
+              "submitted": 12,
+              "missing": 0,
+              "verified": 1,
               "openAlerts": 1,
-              "needsAttention": 1
+              "needsAttention": 2
             },
             "rows": [
               {
@@ -180,28 +180,54 @@
                   "role": "Backend Engineer"
                 },
                 "submitted": true,
-                "reportText": "Finished the login module. Still blocked on the staging database credentials.",
-                "confidence": 4,
-                "sentiment": "negative",
+                "reportText": "Finished the login module and wired up session handling. Still blocked on the staging database credentials, waiting on the infra team.",
+                "confidence": 2,
+                "sentiment": "neutral",
                 "blockers": [
-                  "Still blocked on the staging database credentials"
+                  "Still blocked on the staging database credentials, waiting on the infra team"
                 ],
                 "recurringBlockers": [
-                  "Still blocked on the staging database credentials"
+                  "Still blocked on the staging database credentials, waiting on the infra team"
                 ],
+                "longestBlockerRun": 4,
                 "verified": true,
-                "matchScore": 0,
+                "matchScore": 0.0,
                 "verdict": "unsupported",
-                "commitCount": 1,
+                "commitCount": 9,
                 "prCount": 0,
                 "alerts": [
                   {
                     "id": "alert-1",
-                    "reason": "Reported the login module as finished, but the only commit that day was a README edit and no PR was opened. The staging credentials blocker is now on its second day.",
+                    "reason": "Reported the login module as finished, but none of the nine commits today mention login, session, or auth, and no pull request was opened. The staging credentials blocker is now on its fourth day.",
                     "severity": "high"
                   }
                 ],
-                "attentionRank": 100
+                "attentionRank": 115
+              },
+              {
+                "employee": {
+                  "id": "emp-9",
+                  "name": "Farhan Qureshi",
+                  "role": "Mobile QA"
+                },
+                "submitted": true,
+                "reportText": "Device lab is still down so I cannot run the physical device suite. Blocked on IT for the replacement hub.",
+                "confidence": 3,
+                "sentiment": "negative",
+                "blockers": [
+                  "Device lab is still down so I cannot run the physical device suite"
+                ],
+                "recurringBlockers": [
+                  "Device lab is still down so I cannot run the physical device suite"
+                ],
+                "longestBlockerRun": 2,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 40
               },
               {
                 "employee": {
@@ -209,39 +235,41 @@
                   "name": "Meera Nair",
                   "role": "QA Engineer"
                 },
-                "submitted": false,
-                "reportText": null,
-                "confidence": null,
-                "sentiment": null,
+                "submitted": true,
+                "reportText": "Regression suite is still failing intermittently and I am struggling to keep up with the queue. Feeling pretty exhausted.",
+                "confidence": 2,
+                "sentiment": "negative",
                 "blockers": [],
                 "recurringBlockers": [],
+                "longestBlockerRun": 0,
                 "verified": false,
                 "matchScore": null,
                 "verdict": null,
                 "commitCount": null,
                 "prCount": null,
                 "alerts": [],
-                "attentionRank": 10
+                "attentionRank": 15
               },
               {
                 "employee": {
-                  "id": "emp-3",
-                  "name": "Karthik Iyer",
-                  "role": "Full-stack Engineer"
+                  "id": "emp-11",
+                  "name": "Joel Mathew",
+                  "role": "Junior Engineer"
                 },
                 "submitted": true,
-                "reportText": "Paired with Divya on the widget layout, mostly review and design today.",
+                "reportText": "Got my first PR merged today, the date formatting fix.",
                 "confidence": 4,
-                "sentiment": "neutral",
+                "sentiment": "positive",
                 "blockers": [],
                 "recurringBlockers": [],
-                "verified": true,
-                "matchScore": 0.5,
-                "verdict": "partial",
-                "commitCount": 1,
-                "prCount": 0,
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
                 "alerts": [],
-                "attentionRank": 15
+                "attentionRank": 0
               },
               {
                 "employee": {
@@ -255,11 +283,159 @@
                 "sentiment": "positive",
                 "blockers": [],
                 "recurringBlockers": [],
-                "verified": true,
-                "matchScore": 1,
-                "verdict": "consistent",
-                "commitCount": 4,
-                "prCount": 1,
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-3",
+                  "name": "Karthik Iyer",
+                  "role": "Full-stack Engineer"
+                },
+                "submitted": true,
+                "reportText": "Spent most of today reviewing PRs and pairing with Divya on the widget layout.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-5",
+                  "name": "Rohan Desai",
+                  "role": "DevOps Engineer"
+                },
+                "submitted": true,
+                "reportText": "Rotated the deploy keys and cleaned up the staging pipeline.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-6",
+                  "name": "Sneha Pillai",
+                  "role": "Engineering Manager"
+                },
+                "submitted": true,
+                "reportText": "One-to-ones all morning, then roadmap planning with product.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-7",
+                  "name": "Vikram Shetty",
+                  "role": "Android Engineer"
+                },
+                "submitted": true,
+                "reportText": "Finished the offline sync for the Android client.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-8",
+                  "name": "Ananya Bose",
+                  "role": "iOS Engineer"
+                },
+                "submitted": true,
+                "reportText": "Shipped the new onboarding flow to TestFlight.",
+                "confidence": 5,
+                "sentiment": "positive",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-10",
+                  "name": "Priya Varma",
+                  "role": "Product Designer"
+                },
+                "submitted": true,
+                "reportText": "Finished the empty states and handed the specs to Ananya.",
+                "confidence": 5,
+                "sentiment": "positive",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
+                "alerts": [],
+                "attentionRank": 0
+              },
+              {
+                "employee": {
+                  "id": "emp-12",
+                  "name": "Tara Krishnan",
+                  "role": "Data Engineer"
+                },
+                "submitted": true,
+                "reportText": "Backfilled the events table and validated the counts.",
+                "confidence": 4,
+                "sentiment": "neutral",
+                "blockers": [],
+                "recurringBlockers": [],
+                "longestBlockerRun": 0,
+                "verified": false,
+                "matchScore": null,
+                "verdict": null,
+                "commitCount": null,
+                "prCount": null,
                 "alerts": [],
                 "attentionRank": 0
               }
