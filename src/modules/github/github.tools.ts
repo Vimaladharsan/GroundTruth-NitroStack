@@ -68,8 +68,14 @@ export class GitHubTools {
       throw err;
     }
 
+    const identity = {
+      login: employee.githubUsername,
+      email: employee.githubEmail,
+      name: employee.name,
+    };
+
     const [commits, pullRequests] = await Promise.all([
-      fetchCommits(cfg, employee.githubUsername, date),
+      fetchCommits(cfg, identity, date),
       fetchPullRequests(cfg, employee.githubUsername, date),
     ]);
 

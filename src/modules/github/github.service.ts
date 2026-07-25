@@ -124,9 +124,52 @@ export async function resolveRepos(cfg: GitHubConfig): Promise<string[]> {
   );
 }
 
+/** How to recognise one person's commits. */
+export interface CommitIdentity {
+  /** GitHub login. */
+  login: string;
+  /** Commit author email, if known. */
+  email?: string;
+  /** Display name, used as a last resort. */
+  name?: string;
+}
+
+/**
+ * Whether a commit belongs to this person.
+ *
+ * Deliberately does not rely on the API's `?author=` filter. That filter matches
+ * only GitHub-*linked* commits, and a commit is linked solely when its author
+ * email is registered on the account. A mistyped `git config user.email` — which
+ * is easy to do and gives no visible warning — makes every commit unlinked, and
+ * the login filter then returns nothing at all. Reporting "no commits" when
+ * someone committed all day is the worst possible failure for this product, so
+ * attribution falls back to the raw commit email and then the author name.
+ */
+function commitBelongsTo(
+  commit: {
+    author?: { login?: string } | null;
+    commit: { author: { email?: string; name?: string } };
+  },
+  identity: CommitIdentity,
+): boolean {
+  const login = identity.login.toLowerCase();
+  const email = identity.email?.toLowerCase();
+  const name = identity.name?.toLowerCase();
+
+  if (commit.author?.login?.toLowerCase() === login) return true;
+
+  const commitEmail = commit.commit.author.email?.toLowerCase();
+  if (email && commitEmail === email) return true;
+
+  const commitName = commit.commit.author.name?.toLowerCase();
+  if (commitName && (commitName === login || (name && commitName === name))) return true;
+
+  return false;
+}
+
 export async function fetchCommits(
   cfg: GitHubConfig,
-  githubUsername: string,
+  identity: CommitIdentity,
   date: string,
 ): Promise<CommitRecord[]> {
   const { since, until } = dayBounds(date);
@@ -135,21 +178,24 @@ export async function fetchCommits(
   const out: CommitRecord[] = [];
 
   for (const repo of repos) {
+    // Fetch the day's commits from everyone, then attribute locally — see
+    // commitBelongsTo for why the server-side author filter is not enough.
     const url =
       `${API}/repos/${repo}/commits` +
-      `?author=${encodeURIComponent(githubUsername)}` +
-      `&since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}&per_page=100`;
+      `?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}&per_page=100`;
 
     try {
       const commits = await ghFetch<
         Array<{
           sha: string;
           html_url: string;
-          commit: { message: string; author: { date: string } };
+          author?: { login?: string } | null;
+          commit: { message: string; author: { date: string; email?: string; name?: string } };
         }>
       >(url, cfg.token);
 
       for (const c of commits) {
+        if (!commitBelongsTo(c, identity)) continue;
         out.push({
           sha: c.sha.slice(0, 7),
           message: c.commit.message.split('\n')[0],

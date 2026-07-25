@@ -281,11 +281,22 @@ class Store {
     return this.listEmployees();
   }
 
-  /** Overwrite an employee's GitHub login, so a demo can attribute commits to a real account. */
-  setGithubUsername(employeeId: string, githubUsername: string): Employee | undefined {
+  /**
+   * Overwrite an employee's GitHub identity, so a demo can attribute commits to a
+   * real account. The email is optional but worth setting: GitHub only links a
+   * commit to an account when the commit email is registered there.
+   */
+  setGithubIdentity(
+    employeeId: string,
+    githubUsername: string,
+    githubEmail?: string,
+  ): Employee | undefined {
     const employee = this.data.employees.find((e) => e.id === employeeId);
     if (!employee) return undefined;
     employee.githubUsername = githubUsername;
+    if (githubEmail !== undefined) {
+      employee.githubEmail = githubEmail.trim() || undefined;
+    }
     this.persist();
     return employee;
   }

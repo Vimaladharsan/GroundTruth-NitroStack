@@ -12,6 +12,16 @@ export interface Employee {
   teamId: string;
   /** GitHub login used to attribute commits and PRs to this person. */
   githubUsername: string;
+  /**
+   * Optional git commit email.
+   *
+   * GitHub only links a commit to a user account when the commit's author email
+   * is registered on that account. A mismatched `git config user.email` — very
+   * common — leaves commits showing as an unlinked author, and filtering by
+   * login alone then finds nothing. Setting this lets attribution fall back to
+   * the raw commit email.
+   */
+  githubEmail?: string;
 }
 
 /** A single claim pulled out of an employee's free-text report. */

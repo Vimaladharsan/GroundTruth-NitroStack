@@ -130,7 +130,11 @@ cp .env.example .env
 | `NITRO_LOG_LEVEL` | no | Defaults to `info` |
 
 Only `emp-1` is wired to a real GitHub account — point it at yours with the
-`set_employee_github` tool. The other three keep fictional logins on purpose, so they
+`set_employee_github` tool, and **pass `githubEmail` too**, set to the output of
+`git config user.email` on the machine making the commits. GitHub links a commit to an
+account only when the commit's author email is registered there, so a mistyped git email
+leaves every commit unlinked and a login-only lookup finds nothing — reporting "no commits"
+while someone committed all day. Supplying the email lets attribution fall back to it. The other three keep fictional logins on purpose, so they
 return no commits. Giving everyone the same real username would attribute the same
 commits to all four, and the employee whose role in the demo is to legitimately *have*
 no commits would appear to have them.
@@ -169,14 +173,14 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs five suites — **82 assertions total**, exiting non-zero on any failure.
+Builds, then runs five suites — **85 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
 |---|---|---|
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
 | Smoke | `npm run smoke` | 32 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
-| GitHub | `npm run test:github` | 17 — the real fetch path against a local mock GitHub API |
+| GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 

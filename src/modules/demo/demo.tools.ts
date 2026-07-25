@@ -251,15 +251,24 @@ export class DemoTools {
   @Tool({
     name: 'set_employee_github',
     description:
-      "Point an employee at a real GitHub username so their commits can be verified. " +
-      'Use this during demo setup instead of editing the seed file, then re-run crosscheck_activity.',
+      'Point an employee at a real GitHub identity so their commits can be verified. ' +
+      'Use this during demo setup instead of editing the seed file, then re-run crosscheck_activity. ' +
+      'Strongly recommended: also pass githubEmail, set to the output of `git config user.email` on ' +
+      'the machine making the commits. GitHub only links a commit to an account when the commit email ' +
+      'is registered there, so a mistyped git email makes commits invisible to a login-only lookup.',
     inputSchema: z.object({
       employeeId: z.string().describe('Employee id, full name, or current GitHub username'),
       githubUsername: z.string().describe('The GitHub login to attribute commits to'),
+      githubEmail: z
+        .string()
+        .optional()
+        .describe(
+          'The git commit author email (from `git config user.email`). Lets attribution work even when the commit is not linked to the GitHub account.',
+        ),
     }),
   })
   async setEmployeeGithub(
-    input: { employeeId: string; githubUsername: string },
+    input: { employeeId: string; githubUsername: string; githubEmail?: string },
     ctx: ExecutionContext,
   ) {
     const employee = store.resolveEmployee(input.employeeId);
@@ -269,16 +278,25 @@ export class DemoTools {
       );
     }
 
-    const updated = store.setGithubUsername(employee.id, input.githubUsername);
-    ctx.logger.info('Updated GitHub username', {
+    const updated = store.setGithubIdentity(
+      employee.id,
+      input.githubUsername,
+      input.githubEmail,
+    );
+    ctx.logger.info('Updated GitHub identity', {
       employee: employee.name,
       githubUsername: input.githubUsername,
+      githubEmail: input.githubEmail ?? '(not set)',
     });
 
     return {
       updated: true,
       employee: { id: updated!.id, name: updated!.name },
       githubUsername: updated!.githubUsername,
+      githubEmail: updated!.githubEmail ?? null,
+      note: updated!.githubEmail
+        ? 'Commits will be attributed by GitHub login or by this commit email.'
+        : 'No commit email set — attribution relies on GitHub having linked the commit to this account. If crosscheck_activity finds no commits despite real activity, set githubEmail.',
     };
   }
 }

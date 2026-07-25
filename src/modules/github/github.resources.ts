@@ -46,7 +46,11 @@ export class GitHubResources {
 
     try {
       const cfg = readConfig();
-      const commits = await fetchCommits(cfg, employee.githubUsername, date);
+      const commits = await fetchCommits(
+        cfg,
+        { login: employee.githubUsername, email: employee.githubEmail, name: employee.name },
+        date,
+      );
       return json({
         employee: employee.name,
         githubUsername: employee.githubUsername,
