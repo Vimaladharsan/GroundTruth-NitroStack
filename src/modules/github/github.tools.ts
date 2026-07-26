@@ -1,4 +1,5 @@
-import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
+import { Widget, ExecutionContext, z } from '@nitrostack/core';
+import { ValidatedTool as Tool } from '../../lib/validated-tool.js';
 import { store, today } from '../../store/store.js';
 import { groupBlockerRuns, overlapRatio } from '../../lib/text.js';
 import type { ActivityCheck, ExtractedClaim } from '../../store/types.js';

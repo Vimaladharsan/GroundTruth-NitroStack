@@ -153,7 +153,9 @@ try {
     sessions.push(s);
     await s.ready();
     const digest = await s.tool('generate_daily_digest', { teamId: 'team-platform' });
-    const search = await s.tool('search_reports', {});
+    // Past the default limit of 25 on purpose — this asks how much was seeded,
+    // not what one page of results looks like.
+    const search = await s.tool('search_reports', { limit: 100 });
     // Realistic scale: twelve people over three days, minus the deliberate gaps
     // where someone did not report.
     check('empty store is seeded on boot', search.resultCount === 34,
@@ -199,6 +201,52 @@ try {
     const search = await s.tool('search_reports', {});
     check('does nothing unless DEMO_AUTOSEED is set', search.resultCount === 0,
       `${search.resultCount} report(s)`);
+    s.child.kill();
+  }
+
+  // ---- 5. The declared inputSchema is the enforced one ----
+  //
+  // The framework advertises inputSchema to clients but does not run it, so
+  // @ValidatedTool applies it as a pipe. Without that, an omitted `days` reached
+  // the handler as undefined and produced an empty window for someone who
+  // reported every day — a silent wrong answer, which is the worst kind.
+  {
+    fs.rmSync(DATA_FILE, { force: true });
+    const s = connect({ DEMO_AUTOSEED: 'true', DEMO_AUTOSEED_DAYS: '3' });
+    sessions.push(s);
+    await s.ready();
+
+    const detail = await s.tool('get_employee_detail', { employeeId: 'emp-1' });
+    check('an omitted argument gets its declared default',
+      detail.window?.days === 7, `days=${detail.window?.days}`);
+    check('the default produces a real window, not an empty one',
+      (detail.timeline?.length ?? 0) === 7, `${detail.timeline?.length} day(s)`);
+
+    const raw = (name, args) => s.send('tools/call', { name, arguments: args });
+    const errorText = (r) =>
+      r?.result?.content?.find((c) => c.type === 'text')?.text ?? '';
+
+    const wrongType = await raw('get_employee_detail', { employeeId: 'emp-1', days: 'banana' });
+    check('a wrong-typed argument is rejected, not coerced',
+      wrongType?.result?.isError === true && /Expected number/.test(errorText(wrongType)));
+
+    const outOfRange = await raw('get_employee_detail', { employeeId: 'emp-1', days: 999 });
+    check('a declared range is enforced',
+      outOfRange?.result?.isError === true && /less than or equal to 30/.test(errorText(outOfRange)));
+
+    const missing = await raw('get_employee_detail', {});
+    check('a required argument is required',
+      missing?.result?.isError === true && /employeeId/.test(errorText(missing)));
+
+    // The shape the prompt tells the agent to send. Strings used to reach the
+    // handler and crash on .toLowerCase() instead of being turned away.
+    const badClaims = await raw('crosscheck_activity', {
+      employeeId: 'emp-1', claims: ['finished the login module'],
+    });
+    check('malformed claims are turned away with a readable reason',
+      badClaims?.result?.isError === true && /Expected object/.test(errorText(badClaims)),
+      errorText(badClaims).slice(0, 80));
+
     s.child.kill();
   }
 } catch (err) {

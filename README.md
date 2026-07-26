@@ -259,7 +259,7 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs eight suites — **136 assertions total**, exiting non-zero on any failure.
+Builds, then runs eight suites — **142 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
@@ -271,7 +271,7 @@ No credentials or network access required.
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |
 | Blockers | `npm run test:blockers` | 8 — a blocker reported across days is one blocker, however it is reworded |
 | Insights | `npm run test:insights` | 18 — the drill-down and weekly rollup, including that a quiet week reads as quiet |
-| Caveats | `npm run test:caveats` | 14 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data |
+| Caveats | `npm run test:caveats` | 20 — caller-supplied claims override keyword extraction; auto-seed never clobbers real data; the declared input schema is the enforced one |
 
 Three properties worth calling out, because they are the ones that break quietly:
 

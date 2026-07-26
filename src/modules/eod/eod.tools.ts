@@ -1,4 +1,5 @@
-import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
+import { Widget, ExecutionContext, z } from '@nitrostack/core';
+import { ValidatedTool as Tool } from '../../lib/validated-tool.js';
 import { store, today } from '../../store/store.js';
 import {
   assertsCompletion,

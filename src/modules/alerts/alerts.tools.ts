@@ -1,4 +1,5 @@
-import { ToolDecorator as Tool, ExecutionContext, z } from '@nitrostack/core';
+import { ExecutionContext, z } from '@nitrostack/core';
+import { ValidatedTool as Tool } from '../../lib/validated-tool.js';
 import { store, today } from '../../store/store.js';
 import { deliverToSlack } from './slack.service.js';
 import type { Alert } from '../../store/types.js';
