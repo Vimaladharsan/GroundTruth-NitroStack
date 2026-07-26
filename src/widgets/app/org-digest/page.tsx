@@ -83,6 +83,10 @@ export default function OrgDigest() {
 
   const { summary } = data;
   const clear = data.needsAttention.length === 0;
+  // Nobody flagged means one of two very different things: a day that was
+  // checked and came back fine, or a day nobody has reported yet. Only the
+  // first is good news, so they must never render as the same sentence.
+  const nothingReported = summary.submitted === 0;
 
   return (
     <GroundTruthFrame theme={theme} maxWidth={860}>
@@ -94,7 +98,9 @@ export default function OrgDigest() {
           </p>
           <h2 className="gt-title">
             {clear
-              ? 'No one needs your attention today'
+              ? nothingReported
+                ? 'Nothing reported yet today'
+                : 'No one needs your attention today'
               : `${data.needsAttention.length} ${data.needsAttention.length === 1 ? 'person needs' : 'people need'} your attention`}
           </h2>
         </div>
@@ -133,15 +139,26 @@ export default function OrgDigest() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {t.summary.needsAttention > 0 ? (
+                  {/*
+                    Nobody flagged is only "all clear" if somebody actually
+                    reported. A team where no one has filed yet is unknown, not
+                    fine, and reading "all clear" next to "6 missing" invites the
+                    exact complacency this digest exists to prevent.
+                  */}
+                  {t.summary.needsAttention > 0 && (
                     <Chip tone={tone}>
                       {t.summary.needsAttention} need attention
                     </Chip>
-                  ) : (
+                  )}
+                  {t.summary.needsAttention === 0 && t.summary.submitted > 0 && (
                     <Chip tone="good">all clear</Chip>
                   )}
-                  {t.summary.missing > 0 && (
-                    <Chip tone="warn">{t.summary.missing} missing</Chip>
+                  {t.summary.submitted === 0 ? (
+                    <Chip tone="warn">no reports yet</Chip>
+                  ) : (
+                    t.summary.missing > 0 && (
+                      <Chip tone="warn">{t.summary.missing} missing</Chip>
+                    )
                   )}
                   {t.summary.openAlerts > 0 && (
                     <Chip tone="bad">{t.summary.openAlerts} alert{t.summary.openAlerts === 1 ? '' : 's'}</Chip>
@@ -183,8 +200,11 @@ export default function OrgDigest() {
         {/* Then the people, across every team, worst first. */}
         {clear ? (
           <p className="gt-muted" style={{ margin: 0, fontSize: 13 }}>
-            Every team reported and nothing crossed the attention threshold. That is a
-            real answer, not an empty result — most days should look like this.
+            {nothingReported
+              ? 'No one has filed an EOD report yet, so there is nothing to verify. This is an empty day, not a clear one.'
+              : summary.missing > 0
+                ? `Nothing crossed the attention threshold. ${summary.missing} of ${summary.headcount} have not reported yet, so this is a clear read on the ones who did — not on the whole org.`
+                : 'Every team reported and nothing crossed the attention threshold. That is a real answer, not an empty result — most days should look like this.'}
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

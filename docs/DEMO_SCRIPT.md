@@ -53,7 +53,7 @@ behind you rather than a title card.
 
 Set confidence to **2**. Submit.
 
-> Use 2, not 4. The seeded days run 3 → 3 → 2, so a 4 today reads as *improving* and
+> Use 2, not 4. The seeded days run 3 → 2 → 2, so a 4 today reads as *improving* and
 > the trend chart contradicts the story you are telling. A 2 continues the slide. It is
 > also the more realistic report: someone claiming work is finished while feeling
 > under water is exactly the case a manager should see.
