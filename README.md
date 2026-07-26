@@ -259,12 +259,13 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs eight suites — **142 assertions total**, exiting non-zero on any failure.
+Builds, then runs nine suites — **161 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
 |---|---|---|
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
+| Text signals | `npm run test:text` | 19 — whole-word matching and negation, so "unresolved" never reads as resolved |
 | Smoke | `npm run smoke` | 43 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |

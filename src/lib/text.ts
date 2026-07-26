@@ -41,6 +41,75 @@ const POSITIVE_WORDS = [
   'solved', 'progress', 'happy', 'productive', 'unblocked', 'on track',
 ];
 
+/**
+ * Words that flip the meaning of a signal word just after them.
+ *
+ * Deliberately short. A wide list plus a wide window turns "I was not sure, but
+ * finished the login module" into a report that claims nothing.
+ */
+const NEGATORS = new Set([
+  'not', 'no', 'never', 'without', "isn't", "wasn't", "aren't", "weren't",
+  "hasn't", "haven't", "hadn't", "didn't", "doesn't", "don't", "won't",
+  "couldn't", "wouldn't",
+]);
+
+/** How many preceding words can negate a signal. Two catches "no longer blocked". */
+const NEGATION_WINDOW = 2;
+
+/**
+ * Matches a signal word as a whole word, optionally pluralised.
+ *
+ * `includes()` matched substrings, which inverted meaning on the exact words
+ * that matter most: "unresolved" contains "resolved", so an unfinished bug read
+ * as completed work; "unblocked" contains "blocked", so a cleared blocker
+ * counted towards the recurring-blocker run that decides whether a manager is
+ * alerted. A word boundary fixes the whole un-/in- prefix class at once, since
+ * there is no boundary between the prefix and the stem.
+ */
+function phrasePattern(phrase: string): RegExp {
+  const escaped = phrase
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\s+/g, '\\s+');
+  // Plural kept because "blockers" and "issues" must still match.
+  return new RegExp(`\\b${escaped}s?\\b`, 'g');
+}
+
+/** True if a negator sits within NEGATION_WINDOW words before this position. */
+function negatedAt(lower: string, index: number): boolean {
+  const preceding = lower
+    .slice(0, index)
+    .split(/\s+/)
+    // The text before the match usually ends in a space, which splits to a
+    // trailing empty string — leaving it in costs one slot of the window and
+    // let "no longer blocked" through.
+    .filter(Boolean)
+    .slice(-NEGATION_WINDOW)
+    .map((w) => w.replace(/[^a-z']/g, ''));
+  return preceding.some((w) => NEGATORS.has(w));
+}
+
+/** How many of these phrases appear, as whole words and un-negated. */
+export function countSignals(text: string, phrases: string[]): number {
+  const lower = text.toLowerCase();
+  let found = 0;
+  for (const phrase of phrases) {
+    const re = phrasePattern(phrase);
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(lower)) !== null) {
+      if (!negatedAt(lower, match.index)) {
+        found++;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/** Whether any of these phrases appears, as a whole word and un-negated. */
+export function hasSignal(text: string, phrases: string[]): boolean {
+  return countSignals(text, phrases) > 0;
+}
+
 /** Lowercase content words, stop-words and short tokens removed. */
 export function tokenize(text: string): string[] {
   return text
@@ -59,19 +128,16 @@ export function splitClaims(text: string): string[] {
 }
 
 export function assertsCompletion(text: string): boolean {
-  const lower = text.toLowerCase();
-  return COMPLETION_WORDS.some((w) => lower.includes(w));
+  return hasSignal(text, COMPLETION_WORDS);
 }
 
 export function looksLikeBlocker(text: string): boolean {
-  const lower = text.toLowerCase();
-  return BLOCKER_WORDS.some((w) => lower.includes(w));
+  return hasSignal(text, BLOCKER_WORDS);
 }
 
 export function scoreSentiment(text: string): 'positive' | 'neutral' | 'negative' {
-  const lower = text.toLowerCase();
-  const neg = NEGATIVE_WORDS.filter((w) => lower.includes(w)).length;
-  const pos = POSITIVE_WORDS.filter((w) => lower.includes(w)).length;
+  const neg = countSignals(text, NEGATIVE_WORDS);
+  const pos = countSignals(text, POSITIVE_WORDS);
   if (neg > pos) return 'negative';
   if (pos > neg) return 'positive';
   return 'neutral';

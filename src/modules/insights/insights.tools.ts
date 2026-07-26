@@ -556,7 +556,14 @@ export class InsightsTools {
         }
         return true;
       })
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    // Counted before the limit is applied. Reporting the page size as the
+    // result count told a manager asking "who mentioned staging" that exactly
+    // 25 people did, with no hint that more existed — a confident wrong number
+    // is worse than a long list.
+    const totalMatches = matches.length;
+    const page = matches
       .slice(0, input.limit)
       .map((report) => {
         const employee = store.getEmployee(report.employeeId);
@@ -573,9 +580,12 @@ export class InsightsTools {
         };
       });
 
+    const truncated = totalMatches > page.length;
+
     ctx.logger.info('Searched reports', {
       query: input.query ?? '(none)',
-      results: matches.length,
+      matched: totalMatches,
+      returned: page.length,
     });
 
     return {
@@ -587,12 +597,19 @@ export class InsightsTools {
         until: input.until ?? null,
         blockersOnly: input.blockersOnly,
       },
-      resultCount: matches.length,
-      results: matches,
+      // How many matched, and how many of those are in this response. They are
+      // not the same number once a limit bites, and conflating them turns a
+      // partial answer into a confident wrong one.
+      resultCount: totalMatches,
+      returnedCount: page.length,
+      truncated,
+      results: page,
       note:
-        matches.length === 0
+        totalMatches === 0
           ? 'No reports matched. Keyword matching is literal — try a synonym, widen the date range, or drop the query to see what exists.'
-          : undefined,
+          : truncated
+            ? `Showing the ${page.length} most recent of ${totalMatches} matches. Raise \`limit\` to see the rest before drawing any conclusion about how widespread this is.`
+            : undefined,
       today: today(),
     };
   }
