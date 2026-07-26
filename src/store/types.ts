@@ -40,7 +40,8 @@ export interface EODReport {
   /** Self-reported confidence, 1 (struggling) to 5 (on track). */
   confidence: number;
   submittedAt: string;
-  /** Populated once extract_eod_summary has run over rawText. */
+  /** Deterministic pre-parse of rawText, written on submit. A fallback: the
+   * agent is expected to read rawText and supply better claims itself. */
   claims?: ExtractedClaim[];
   blockers?: string[];
   sentiment?: 'positive' | 'neutral' | 'negative';

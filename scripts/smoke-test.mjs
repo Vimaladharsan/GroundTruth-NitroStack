@@ -91,7 +91,7 @@ try {
   const tools = await send('tools/list', {});
   const toolNames = (tools.result?.tools ?? []).map((t) => t.name).sort();
   const expectedTools = [
-    'analyze_wellbeing_trend', 'crosscheck_activity', 'extract_eod_summary',
+    'analyze_wellbeing_trend', 'crosscheck_activity',
     'generate_daily_digest', 'generate_org_digest', 'generate_weekly_summary',
     'get_employee_detail', 'open_eod_form', 'reset_demo_data',
     'resolve_manager_alert', 'search_reports', 'seed_demo_data',
@@ -150,11 +150,16 @@ try {
   check('eod://reports/{id}/{date} resolves params', reportData?.submitted === true,
     `date=${reportData?.date}`);
 
-  // --- extract_eod_summary ---
-  const extract = await send('tools/call', { name: 'extract_eod_summary', arguments: { employeeId: empId } });
-  const extractData = toolJson(extract);
-  check('extract_eod_summary re-parses', Array.isArray(extractData?.claims),
-    `${extractData?.claims?.length} claims`);
+  // --- The report resource is what the agent reads, now that the
+  // extract tool is gone; it must carry the raw text and the pre-parse. ---
+  const readBack = JSON.parse(
+    (await send('resources/read', { uri: `eod://reports/${empId}/${today}` }))
+      .result?.contents?.[0]?.text ?? '{}',
+  );
+  check('report resource carries the raw text for the agent to read',
+    typeof readBack?.report?.rawText === 'string' && readBack.report.rawText.length > 0);
+  check('report resource still carries the fallback pre-parse',
+    Array.isArray(readBack?.report?.claims), `${readBack?.report?.claims?.length} claims`);
 
   // --- crosscheck without a token should fail with a helpful message ---
   const cross = await send('tools/call', { name: 'crosscheck_activity', arguments: { employeeId: empId } });

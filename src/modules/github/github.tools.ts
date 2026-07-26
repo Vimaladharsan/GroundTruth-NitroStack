@@ -129,7 +129,8 @@ export class GitHubTools {
 
     if (claims.length === 0) {
       observations.push(
-        'No structured claims on file — run extract_eod_summary on this report first for a meaningful comparison.',
+        'No structured claims on file. Read the report text above and pass your own claims array '
+          + 'to this tool for a meaningful comparison.',
       );
     } else if (!agentSuppliedClaims) {
       observations.push(

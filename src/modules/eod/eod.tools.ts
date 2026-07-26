@@ -122,59 +122,6 @@ export class EodTools {
   }
 
   @Tool({
-    name: 'extract_eod_summary',
-    description:
-      'Re-parse a stored EOD report into structured claims, blockers, and a sentiment reading. ' +
-      'submit_eod_report already does this on save; use this to refresh the extraction, ' +
-      'or to inspect the structure before cross-checking. Extraction is deterministic keyword ' +
-      'analysis — treat the output as a starting point and apply your own judgement to the raw text.',
-    inputSchema: z.object({
-      employeeId: z
-        .string()
-        .describe('Employee id, full name, or GitHub username'),
-      date: z
-        .string()
-        .optional()
-        .describe('Date in YYYY-MM-DD format. Defaults to today.'),
-    }),
-  })
-  async extractEodSummary(
-    input: { employeeId: string; date?: string },
-    ctx: ExecutionContext,
-  ) {
-    const employee = store.resolveEmployee(input.employeeId);
-    if (!employee) {
-      throw new Error(`No employee matches "${input.employeeId}".`);
-    }
-
-    const date = input.date ?? today();
-    const report = store.getReport(employee.id, date);
-    if (!report) {
-      throw new Error(
-        `${employee.name} has not submitted an EOD report for ${date}.`,
-      );
-    }
-
-    const extraction = extractFrom(report.rawText);
-    store.updateReport(report.id, extraction);
-
-    ctx.logger.info('Re-extracted report structure', {
-      employee: employee.name,
-      date,
-      claims: extraction.claims.length,
-    });
-
-    return {
-      reportId: report.id,
-      employee: { id: employee.id, name: employee.name },
-      date,
-      rawText: report.rawText,
-      confidence: report.confidence,
-      ...extraction,
-    };
-  }
-
-  @Tool({
     name: 'generate_daily_digest',
     description:
       "Build the manager's digest for a team on a date: every submitted report, its cross-check " +

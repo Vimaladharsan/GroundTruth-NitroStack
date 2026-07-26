@@ -24,7 +24,7 @@ The important design decision: **every tool in this project is deterministic.** 
 
 For each submitted report, the model works through:
 
-1. **Perceive** — read the report and the claims parsed out of it (`extract_eod_summary`)
+1. **Perceive** — read the report in the person's own words (`eod://reports/{employeeId}/{date}`)
 2. **Verify** — pull the employee's real commits and PRs for that date (`crosscheck_activity`)
 3. **Reason** — weigh claimed work against real activity, and against prior days' blockers
 4. **Decide** — nothing to raise / worth noting / raise at standup / needs attention today
@@ -51,7 +51,7 @@ flowchart TB
     subgraph evidence["Deterministic — gathers evidence, decides nothing"]
         direction LR
         submit["submit_eod_report<br/><i>stores the raw text</i>"]
-        extract["extract_eod_summary<br/><i>keyword parse, fallback only</i>"]
+        report["eod://reports/{id}/{date}<br/><i>the report, in their words</i>"]
         cross["crosscheck_activity<br/><i>live GitHub commits + PRs</i>"]
         trend["analyze_wellbeing_trend<br/><i>slopes, streaks, blocker runs</i>"]
     end
@@ -71,7 +71,7 @@ flowchart TB
 
     emp(["Employee<br/>one honest paragraph"]) --> submit
     gh[("GitHub API<br/>what actually happened")] --> cross
-    submit --> extract --> agentLoop
+    submit --> report --> agentLoop
     cross --> agentLoop
     trend --> agentLoop
     agentLoop --> decide
@@ -85,7 +85,7 @@ flowchart TB
     classDef agent fill:#faeed9,stroke:#9a6516,color:#171b22
     classDef out fill:#e2f2ea,stroke:#1f7a52,color:#171b22
     classDef ext fill:#eef0f4,stroke:#bcc3cf,color:#171b22
-    class submit,extract,cross,trend det
+    class submit,report,cross,trend det
     class agentLoop,decide agent
     class alert,digest,quiet out
     class emp,gh,mgr ext
@@ -133,7 +133,6 @@ breaks mid-take — is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 |---|---|
 | `open_eod_form` | Renders the submission form widget |
 | `submit_eod_report` | Stores a report and pre-parses claims, blockers, sentiment |
-| `extract_eod_summary` | Re-parses a stored report into structured claims |
 | `crosscheck_activity` | Pulls live GitHub commits/PRs and scores claim support |
 | `send_manager_alert` | Raises an alert — called only when the agent decides to, and posts to Slack if configured |
 | `resolve_manager_alert` | Clears a handled alert |
@@ -260,13 +259,13 @@ The seeded team is four deliberately different cases, and the interesting one is
 npm run verify
 ```
 
-Builds, then runs eight suites — **135 assertions total**, exiting non-zero on any failure.
+Builds, then runs eight suites — **136 assertions total**, exiting non-zero on any failure.
 No credentials or network access required.
 
 | Suite | Command | Covers |
 |---|---|---|
 | Unwrap | `npm run test:unwrap` | 15 — normalising every MCP envelope shape a widget host might send |
-| Smoke | `npm run smoke` | 42 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
+| Smoke | `npm run smoke` | 43 — the full MCP surface over stdio: registration, submission, extraction, alerting, digest ordering, trend signals, search, prompts, health |
 | GitHub | `npm run test:github` | 20 — the real fetch path against a local mock GitHub API, including commits GitHub never linked to an account |
 | Read-only | `npm run test:readonly` | 6 — the server still boots and serves when the data directory cannot be written |
 | Slack | `npm run test:slack` | 12 — optional alert delivery, including every failure mode |

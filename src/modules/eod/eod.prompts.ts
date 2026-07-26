@@ -48,7 +48,7 @@ export class EodPrompts {
 
 Work through this loop, and narrate each step out loud as you go — the reasoning is the point, not just the conclusion.
 
-**1. Perceive.** Call \`extract_eod_summary\` for this employee and date to see the report text and the claims parsed out of it. Read the raw text yourself; the extraction is blunt keyword matching and will miss nuance.
+**1. Perceive.** Read the \`eod://reports/{employeeId}/{date}\` resource for this person and date. That gives you their report in their own words, plus the confidence and tone they attached to it. Read the words themselves rather than the parsed fields — a stored extraction cannot tell "finished the login module" from "still finishing the login module", and you can.
 
 **2. Verify.** Call \`crosscheck_activity\` for the same employee and date — and pass a \`claims\` array you wrote yourself from the raw report text. The stored extraction splits on punctuation and matches keywords; it cannot tell "finished the login module" from "still finishing the login module", and it will merge or mangle anything conversational. You can read the sentence. Set \`assertsCompletion\` only where the person genuinely says the work is done.
 
@@ -120,7 +120,7 @@ Do not inflate a minor gap into an alert to look thorough. An agent that stays q
 Team roster and submission status:
 ${roster}
 
-For each person who has submitted, run the full review loop: call \`extract_eod_summary\`, then \`crosscheck_activity\`, reason about whether the gap is real, and call \`send_manager_alert\` only where you judge it warranted. Narrate your reasoning for each person as you go.
+For each person who has submitted, run the full review loop: read their \`eod://reports/{employeeId}/{date}\` resource, then call \`crosscheck_activity\` passing the claims you read out of it, reason about whether the gap is real, and call \`send_manager_alert\` only where you judge it warranted. Narrate your reasoning for each person as you go.
 
 Then call \`generate_daily_digest\` for ${teamId} on ${date} to render the manager's dashboard.
 
